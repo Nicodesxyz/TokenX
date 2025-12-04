@@ -10,7 +10,6 @@ import launchpadABI from "./abi/LaunchpadToken.json";
 const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS;
 
 export default function HomePage() {
-  // 1) Load tokens from factory
   const {
     data: tokensData,
     isLoading: isTokensLoading,
@@ -23,7 +22,6 @@ export default function HomePage() {
 
   const tokens = useMemo(() => tokensData ?? [], [tokensData]);
 
-  // 2) Build owner() + totalSupply() calls
   const ownerCalls = tokens.map((t) => ({
     address: t.token,
     abi: launchpadABI.abi,
@@ -36,7 +34,6 @@ export default function HomePage() {
     functionName: "totalSupply",
   }));
 
-  // 3) Run multi-reads
   const { data: ownersData, isLoading: ownersLoading } = useReadContracts({
     contracts: ownerCalls,
     query: { enabled: tokens.length > 0 },
@@ -49,7 +46,6 @@ export default function HomePage() {
 
   const loading = isTokensLoading || ownersLoading || supplyLoading;
 
-  // Helper
   const zeroAddress = "0x0000000000000000000000000000000000000000";
 
   return (
@@ -76,7 +72,6 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* GRID */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {!loading &&
             tokens.map((token, idx) => {
@@ -91,13 +86,11 @@ export default function HomePage() {
 
               const decimalsNum = Number(decimals);
 
-              // On-chain owner
               const owner =
                 ownersData?.[idx]?.result || ownersData?.[idx] || null;
 
               const renounced = owner && owner.toLowerCase() === zeroAddress;
 
-              // totalSupply raw
               const supplyRaw =
                 supplyData?.[idx]?.result ?? supplyData?.[idx] ?? null;
 
@@ -121,7 +114,6 @@ export default function HomePage() {
                     flex flex-col gap-2
                   "
                 >
-                  {/* NAME / SYMBOL */}
                   <div className="flex items-start justify-between">
                     <div>
                       <h2 className="text-base font-semibold text-slate-50">
@@ -131,7 +123,6 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  {/* SUPPLY */}
                   <div className="mt-1">
                     <p className="text-xs text-slate-500">Current Supply</p>
                     <p className="font-mono text-sm text-slate-100">
@@ -139,7 +130,6 @@ export default function HomePage() {
                     </p>
                   </div>
 
-                  {/* STICKERS */}
                   <div className="flex gap-2 flex-wrap mt-1">
                     {mintable ? (
                       <span
@@ -182,7 +172,6 @@ export default function HomePage() {
                     )}
                   </div>
 
-                  {/* OWNERSHIP */}
                   <div className="mt-2 text-xs text-slate-400">
                     Ownership renounced:
                     {renounced ? (
@@ -196,7 +185,6 @@ export default function HomePage() {
                     )}
                   </div>
 
-                  {/* ADDRESS */}
                   <div className="text-[0.60rem] text-slate-600 font-mono mt-1">
                     {tokenAddress.slice(0, 6)}...{tokenAddress.slice(-4)}
                   </div>
