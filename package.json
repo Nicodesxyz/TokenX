@@ -14,9 +14,12 @@
     "react-dom": "19.2.0"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.1.0",
+    "@openzeppelin/contracts": "^5.4.0",
     "@tailwindcss/postcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "16.0.6",
+    "hardhat": "^2.27.1",
     "tailwindcss": "^4"
   }
 }

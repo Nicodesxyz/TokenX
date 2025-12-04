@@ -12,13 +12,13 @@ const LeftNav = () => {
             </Link>
           </li>
           <li>
-            <Link href="/staking" className="left-nav__link">
-              Staking
+            <Link href="/token" className="left-nav__link">
+              Token
             </Link>
           </li>
           <li>
-            <Link href="/token" className="left-nav__link">
-              Token
+            <Link href="/staking" className="left-nav__link">
+              Staking
             </Link>
           </li>
           <li>

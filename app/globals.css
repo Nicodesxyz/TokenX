@@ -3,6 +3,13 @@
 :root {
   --background: #0a0f1f;
   --foreground: #171717;
+  --textcolor: #a9b4ce;
+}
+
+.main-wrapper {
+  background: var(--background);
+  margin: 110px 0 0 300px;
+  color: var(--textcolor);
 }
 
 .left-nav {
