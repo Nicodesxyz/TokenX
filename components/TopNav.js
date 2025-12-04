@@ -1,5 +1,6 @@
 import Image from "next/image";
 import React from "react";
+import WalletButton from "./WalletButton";
 
 const TopNav = () => {
   return (
@@ -17,7 +18,7 @@ const TopNav = () => {
           <span className="top-nav__brand-name">ForgeX</span>
         </div>
 
-        <button className="top-nav__connect-btn">Connect Wallet</button>
+        <WalletButton />
       </div>
     </header>
   );
