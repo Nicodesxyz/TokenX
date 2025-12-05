@@ -1,9 +1,12 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 ## Public Sepolia contract deployed
-0x262977b065471D3CC0425519A686435eb7fE2072
+
+Factory 0x262977b065471D3CC0425519A686435eb7fE2072
+Stacking 0x2C9C3836C159afBe95effAf06348A1ad7fFD9947
 
 ## Getting Started
+
 First, run the development server:
 
 ```bash
