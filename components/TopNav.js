@@ -15,7 +15,7 @@ const TopNav = () => {
             priority
           />
 
-          <span className="top-nav__brand-name">ForgeX</span>
+          <span className="top-nav__brand-name">TokenX</span>
         </div>
 
         <WalletButton />

@@ -9,8 +9,8 @@ import {
 } from "wagmi";
 import { formatUnits, parseUnits } from "viem";
 
-import stakingABI from "./abi/MultiTokenStaking.json";
-import tokenABI from "./abi/LaunchpadToken.json";
+import stakingABI from "../abi/MultiTokenStaking.json";
+import tokenABI from "../abi/LaunchpadToken.json";
 
 const STAKING_ADDRESS = process.env.NEXT_PUBLIC_STAKING_ADDRESS;
 

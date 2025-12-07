@@ -24,12 +24,15 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased main-wrapper`}
+        className={`${geistSans.variable} ${geistMono.variable} main-wrapper`}
       >
         <Providers>
           <LeftNav />
           <TopNav />
-          <main>{children}</main>
+
+          <main className="app-main">
+            <div className="app-main-inner">{children}</div>
+          </main>
         </Providers>
       </body>
     </html>

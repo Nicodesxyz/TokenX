@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
 :root {
   --background: #0a0f1f;
   --corebackground: #050816;
@@ -7,9 +14,30 @@
   --textcolor: #a9b4ce;
 }
 
+.app-main {
+  min-height: 100vh;
+  padding-top: 72px;
+  padding-left: 0;
+  padding-right: 1rem;
+  padding-bottom: 2rem;
+  display: flex;
+}
+
+@media (min-width: 768px) {
+  .app-main {
+    padding-left: 220px;
+    padding-right: 2rem;
+  }
+}
+
+.app-main-inner {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
 .main-wrapper {
   background: var(--corebackground);
-  margin: 10px 0 0 200px;
   color: var(--textcolor);
 }
 
