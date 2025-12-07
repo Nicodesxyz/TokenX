@@ -150,8 +150,8 @@ export default function TokenCreatorPage() {
   const chainErrorMsg = chainError?.shortMessage || chainError?.message;
 
   return (
-    <div className="min-h-screen w-full bg-[#050816] text-slate-100 pt-24 px-4 lg:px-8">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-h-screen w-full bg-[#050816] text-slate-100">
+      <div className="mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold tracking-tight">
             Create Your Token

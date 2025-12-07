@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   useAccount,
   useReadContract,
@@ -10,71 +10,161 @@ import {
 import { formatUnits, parseUnits } from "viem";
 
 import stakingABI from "../abi/MultiTokenStaking.json";
-import tokenABI from "../abi/LaunchpadToken.json";
 
 const STAKING_ADDRESS = process.env.NEXT_PUBLIC_STAKING_ADDRESS;
+const DEFAULT_DECIMALS = 18;
 
 export default function StakingPage() {
   const { address, isConnected } = useAccount();
+
   const [selectedToken, setSelectedToken] = useState("");
   const [amount, setAmount] = useState("");
+  const [localError, setLocalError] = useState("");
+
+  const isValidToken =
+    selectedToken &&
+    selectedToken.startsWith("0x") &&
+    selectedToken.length === 42;
 
   const { data: poolInfo, refetch: refetchPool } = useReadContract({
     address: STAKING_ADDRESS,
     abi: stakingABI.abi,
     functionName: "getPoolInfo",
-    args: selectedToken ? [selectedToken] : undefined,
-    query: { enabled: !!selectedToken },
+    args: isValidToken ? [selectedToken] : undefined,
+    query: { enabled: !!STAKING_ADDRESS && isValidToken },
   });
 
   const { data: earned, refetch: refetchEarned } = useReadContract({
     address: STAKING_ADDRESS,
     abi: stakingABI.abi,
     functionName: "earned",
-    args: selectedToken && address ? [selectedToken, address] : undefined,
-    query: { enabled: !!selectedToken && isConnected },
+    args: isValidToken && address ? [selectedToken, address] : undefined,
+    query: { enabled: !!STAKING_ADDRESS && isValidToken && !!address },
   });
 
-  const { data: balance, refetch: refetchBalance } = useReadContract({
+  const { data: userData, refetch: refetchUser } = useReadContract({
     address: STAKING_ADDRESS,
     abi: stakingABI.abi,
     functionName: "userData",
-    args: selectedToken && address ? [selectedToken, address] : undefined,
-    query: { enabled: !!selectedToken && isConnected },
+    args: isValidToken && address ? [selectedToken, address] : undefined,
+    query: { enabled: !!STAKING_ADDRESS && isValidToken && !!address },
   });
 
-  const { writeContract, data: txHash } = useWriteContract();
-  const { isLoading: txLoading, isSuccess: txSuccess } =
-    useWaitForTransactionReceipt({ hash: txHash });
+  const stakedBalance = useMemo(() => {
+    if (!userData) return 0n;
+    return userData[0] ?? 0n;
+  }, [userData]);
+
+  const {
+    writeContract,
+    data: txHash,
+    isPending,
+    error: writeError,
+  } = useWriteContract();
+
+  const {
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+    error: txError,
+  } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
+
+  const loading = isPending || isConfirming;
+  const chainError = writeError || txError;
+  const chainErrorMsg = chainError?.shortMessage || chainError?.message;
 
   useEffect(() => {
-    if (txSuccess) {
-      refetchBalance();
-      refetchEarned();
-      refetchPool();
+    if (isConfirmed) {
+      refetchPool?.();
+      refetchEarned?.();
+      refetchUser?.();
       setAmount("");
+      setLocalError("");
     }
-  }, [txSuccess]);
+  }, [isConfirmed, refetchPool, refetchEarned, refetchUser]);
 
-  const stake = () => {
+  const handleStake = () => {
+    setLocalError("");
+
+    if (!isConnected) {
+      setLocalError("Please connect your wallet first.");
+      return;
+    }
+
+    if (!isValidToken) {
+      setLocalError("Enter a valid token address (0x…).");
+      return;
+    }
+
+    if (!amount || Number(amount) <= 0) {
+      setLocalError("Enter a positive amount to stake.");
+      return;
+    }
+
+    let parsed;
+    try {
+      parsed = parseUnits(amount, DEFAULT_DECIMALS);
+    } catch (e) {
+      setLocalError("Invalid amount format.");
+      return;
+    }
+
     writeContract({
       address: STAKING_ADDRESS,
       abi: stakingABI.abi,
       functionName: "stake",
-      args: [selectedToken, parseUnits(amount, 18)],
+      args: [selectedToken, parsed],
     });
   };
 
-  const withdraw = () => {
+  const handleWithdraw = () => {
+    setLocalError("");
+
+    if (!isConnected) {
+      setLocalError("Please connect your wallet first.");
+      return;
+    }
+
+    if (!isValidToken) {
+      setLocalError("Enter a valid token address (0x…).");
+      return;
+    }
+
+    if (!amount || Number(amount) <= 0) {
+      setLocalError("Enter a positive amount to withdraw.");
+      return;
+    }
+
+    let parsed;
+    try {
+      parsed = parseUnits(amount, DEFAULT_DECIMALS);
+    } catch (e) {
+      setLocalError("Invalid amount format.");
+      return;
+    }
+
     writeContract({
       address: STAKING_ADDRESS,
       abi: stakingABI.abi,
       functionName: "withdraw",
-      args: [selectedToken, parseUnits(amount, 18)],
+      args: [selectedToken, parsed],
     });
   };
 
-  const claim = () => {
+  const handleClaim = () => {
+    setLocalError("");
+
+    if (!isConnected) {
+      setLocalError("Please connect your wallet first.");
+      return;
+    }
+
+    if (!isValidToken) {
+      setLocalError("Enter a valid token address (0x…).");
+      return;
+    }
+
     writeContract({
       address: STAKING_ADDRESS,
       abi: stakingABI.abi,
@@ -83,80 +173,142 @@ export default function StakingPage() {
     });
   };
 
-  return (
-    <div className="min-h-screen bg-[#050816] text-white p-6 pt-24 max-w-2xl mx-auto">
-      <h1 className="text-2xl mb-6">Staking</h1>
+  let totalStaked = "0";
+  let periodEndString = "-";
+  let rewardRateDisplay = "0";
 
-      <div className="mb-6">
-        <label className="text-sm text-slate-400">Select Token</label>
-        <input
-          type="text"
-          placeholder="0x123... token address"
-          className="w-full mt-1 bg-[#0A1020] border border-slate-700 rounded-lg p-3 text-sm"
-          value={selectedToken}
-          onChange={(e) => setSelectedToken(e.target.value)}
-        />
+  if (poolInfo) {
+    try {
+      const totalStakedRaw = poolInfo[5];
+      const rewardRateRaw = poolInfo[1];
+      const periodFinishRaw = poolInfo[4];
+      if (typeof totalStakedRaw === "bigint") {
+        totalStaked = formatUnits(totalStakedRaw, DEFAULT_DECIMALS);
+      }
+
+      rewardRateDisplay =
+        typeof rewardRateRaw === "bigint"
+          ? rewardRateRaw.toString()
+          : String(rewardRateRaw ?? "0");
+
+      if (typeof periodFinishRaw === "bigint" && periodFinishRaw > 0n) {
+        const ts = Number(periodFinishRaw);
+        periodEndString = new Date(ts * 1000).toLocaleString();
+      }
+    } catch (e) {
+      console.error("Error formatting pool info:", e);
+    }
+  }
+
+  const earnedDisplay =
+    typeof earned === "bigint" ? formatUnits(earned, DEFAULT_DECIMALS) : "0";
+
+  const stakedDisplay = formatUnits(stakedBalance, DEFAULT_DECIMALS);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Staking</h1>
+        <p className="text-sm text-slate-400">
+          Stake any whitelisted TokenX asset to earn rewards from your
+          MultiTokenStaking contract.
+        </p>
       </div>
 
-      {poolInfo && (
-        <div className="bg-[#0A1020] border border-slate-800 rounded-xl p-4 mb-6">
-          <h2 className="text-lg mb-3">Pool Stats</h2>
+      {!STAKING_ADDRESS && (
+        <div className="rounded-xl border border-red-500/40 bg-red-950/50 p-4 text-sm text-red-100">
+          Staking contract address is not configured. Set{" "}
+          <code className="font-mono text-xs">NEXT_PUBLIC_STAKING_ADDRESS</code>{" "}
+          in your <code>.env</code>.
+        </div>
+      )}
 
-          <p className="text-sm text-slate-400">
-            Total Staked:
-            <span className="text-white ml-2">
-              {formatUnits(poolInfo[5], 18)} tokens
+      {localError && (
+        <div className="rounded-xl border border-yellow-500/40 bg-yellow-950/40 p-4 text-sm text-yellow-100">
+          ⚠️ {localError}
+        </div>
+      )}
+
+      {chainErrorMsg && (
+        <div className="rounded-xl border border-red-500/40 bg-red-950/60 p-4 text-sm text-red-100">
+          ⚠️ Transaction error: {chainErrorMsg}
+        </div>
+      )}
+
+      <div className="bg-[#0A1020] border border-slate-800 rounded-xl p-4 space-y-2">
+        <label className="text-sm text-slate-400">Token address</label>
+        <input
+          type="text"
+          placeholder="0x... (paste from Home → Copy)"
+          className="w-full bg-[#101528] border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          value={selectedToken}
+          onChange={(e) => setSelectedToken(e.target.value.trim())}
+        />
+        {!isValidToken && selectedToken && (
+          <p className="text-[0.7rem] text-red-400">
+            Token address must be a valid 42-character 0x address.
+          </p>
+        )}
+      </div>
+
+      {isValidToken && poolInfo && (
+        <div className="bg-[#0A1020] border border-slate-800 rounded-xl p-4 space-y-2">
+          <h2 className="text-sm font-semibold text-slate-100 mb-1">
+            Pool stats
+          </h2>
+
+          <p className="text-xs text-slate-400">
+            Total staked:{" "}
+            <span className="font-mono text-slate-100">{totalStaked}</span>
+          </p>
+
+          <p className="text-xs text-slate-400">
+            Reward rate:{" "}
+            <span className="font-mono text-slate-100">
+              {rewardRateDisplay} tokens/sec
             </span>
           </p>
 
-          <p className="text-sm text-slate-400">
-            Rewards Rate:
-            <span className="text-white ml-2">{poolInfo[1].toString()}</span>
-          </p>
-
-          <p className="text-sm text-slate-400">
-            Ends:
-            <span className="text-white ml-2">
-              {new Date(poolInfo[4] * 1000).toLocaleString()}
-            </span>
+          <p className="text-xs text-slate-400">
+            Period ends:{" "}
+            <span className="font-mono text-slate-100">{periodEndString}</span>
           </p>
         </div>
       )}
 
-      {isConnected && selectedToken && (
-        <div className="bg-[#0A1020] border border-slate-800 rounded-xl p-4 mb-6">
-          <h2 className="text-lg mb-3">Your Position</h2>
+      {isConnected && isValidToken && (
+        <div className="bg-[#0A1020] border border-slate-800 rounded-xl p-4 space-y-2">
+          <h2 className="text-sm font-semibold text-slate-100 mb-1">
+            Your position
+          </h2>
 
-          <p className="text-sm">
+          <p className="text-xs text-slate-400">
             Staked:{" "}
-            <span className="font-mono text-emerald-400">
-              {balance ? formatUnits(balance[0], 18) : "0"}
-            </span>
+            <span className="font-mono text-emerald-400">{stakedDisplay}</span>
           </p>
 
-          <p className="text-sm mt-1">
+          <p className="text-xs text-slate-400">
             Earned:{" "}
-            <span className="font-mono text-yellow-300">
-              {earned ? formatUnits(earned, 18) : "0"}
-            </span>
+            <span className="font-mono text-yellow-300">{earnedDisplay}</span>
           </p>
 
           <button
-            onClick={claim}
-            disabled={txLoading}
-            className="mt-3 bg-yellow-600 hover:bg-yellow-500 transition px-4 py-2 rounded-lg text-sm"
+            type="button"
+            onClick={handleClaim}
+            disabled={loading || !earned || earned === 0n}
+            className="mt-3 inline-flex items-center rounded-lg bg-yellow-600 px-4 py-2 text-xs font-semibold text-black hover:bg-yellow-500 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {txLoading ? "Claiming..." : "Claim Rewards"}
+            {loading ? "Claiming..." : "Claim rewards"}
           </button>
         </div>
       )}
 
-      {isConnected && selectedToken && (
+      {isConnected && isValidToken && (
         <div className="bg-[#0A1020] border border-slate-800 rounded-xl p-4">
           <label className="text-sm text-slate-400">Amount</label>
           <input
             type="text"
-            className="w-full mt-1 bg-[#111728] border border-slate-800 rounded-lg p-3 text-sm"
+            className="w-full mt-1 bg-[#111728] border border-slate-800 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.0"
@@ -164,27 +316,29 @@ export default function StakingPage() {
 
           <div className="flex gap-3 mt-4">
             <button
-              onClick={stake}
-              disabled={txLoading}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-500 transition px-4 py-2 rounded-lg text-sm"
+              type="button"
+              onClick={handleStake}
+              disabled={loading}
+              className="flex-1 inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {txLoading ? "Processing..." : "Stake"}
+              {loading ? "Processing..." : "Stake"}
             </button>
 
             <button
-              onClick={withdraw}
-              disabled={txLoading}
-              className="flex-1 bg-red-600 hover:bg-red-500 transition px-4 py-2 rounded-lg text-sm"
+              type="button"
+              onClick={handleWithdraw}
+              disabled={loading}
+              className="flex-1 inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold hover:bg-red-500 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {txLoading ? "Processing..." : "Withdraw"}
+              {loading ? "Processing..." : "Withdraw"}
             </button>
           </div>
         </div>
       )}
 
       {!isConnected && (
-        <p className="text-center text-slate-400 mt-6">
-          Connect your wallet to interact with staking.
+        <p className="text-center text-xs text-slate-400">
+          Connect your wallet to use staking.
         </p>
       )}
     </div>

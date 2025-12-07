@@ -16,17 +16,16 @@ body {
 
 .app-main {
   min-height: 100vh;
-  padding-top: 72px;
-  padding-left: 0;
+  padding-top: 110px;
+  padding-left: 300px;
   padding-right: 1rem;
   padding-bottom: 2rem;
   display: flex;
 }
 
-@media (min-width: 768px) {
+@media (max-width: 768px) {
   .app-main {
-    padding-left: 220px;
-    padding-right: 2rem;
+    padding: 0;
   }
 }
 
