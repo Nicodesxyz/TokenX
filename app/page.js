@@ -91,7 +91,7 @@ export default function HomePage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
         {!loading &&
           tokens.map((tokenInfo, idx) => {
             const {
@@ -132,9 +132,9 @@ export default function HomePage() {
                   p-4 
                   shadow-[0_0_25px_rgba(15,23,42,0.5)]
                   flex flex-col gap-2
+                  max-w-[350px]
                 "
               >
-                {/* Header */}
                 <div className="flex items-start justify-between">
                   <div>
                     <h2 className="text-base font-semibold text-slate-50">
@@ -144,7 +144,6 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Supply */}
                 <div className="mt-1">
                   <p className="text-xs text-slate-500">Current Supply</p>
                   <p className="font-mono text-sm text-slate-100">
@@ -152,7 +151,6 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                {/* Stickers */}
                 <div className="flex gap-2 flex-wrap mt-1">
                   {mintable ? (
                     <span
@@ -195,7 +193,6 @@ export default function HomePage() {
                   )}
                 </div>
 
-                {/* Ownership */}
                 <div className="mt-2 text-xs text-slate-400">
                   Ownership renounced:
                   {renounced ? (
@@ -207,7 +204,6 @@ export default function HomePage() {
                   )}
                 </div>
 
-                {/* Address + Copy */}
                 <div className="mt-2 flex items-center justify-between">
                   <div className="text-[0.70rem] text-slate-500 font-mono">
                     {tokenAddress.slice(0, 6)}...{tokenAddress.slice(-4)}

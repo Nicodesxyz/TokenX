@@ -19,12 +19,30 @@ export default function StakingPage() {
 
   const [selectedToken, setSelectedToken] = useState("");
   const [amount, setAmount] = useState("");
+  const [rewardAmount, setRewardAmount] = useState("");
+  const [durationDays, setDurationDays] = useState("30");
   const [localError, setLocalError] = useState("");
 
   const isValidToken =
     selectedToken &&
     selectedToken.startsWith("0x") &&
     selectedToken.length === 42;
+
+  const { data: owner } = useReadContract({
+    address: STAKING_ADDRESS,
+    abi: stakingABI.abi,
+    functionName: "owner",
+    query: { enabled: !!STAKING_ADDRESS },
+  });
+
+  const isOwner = useMemo(() => {
+    if (!address || !owner) return false;
+    try {
+      return address.toLowerCase() === String(owner).toLowerCase();
+    } catch {
+      return false;
+    }
+  }, [address, owner]);
 
   const { data: poolInfo, refetch: refetchPool } = useReadContract({
     address: STAKING_ADDRESS,
@@ -170,6 +188,60 @@ export default function StakingPage() {
       abi: stakingABI.abi,
       functionName: "getReward",
       args: [selectedToken],
+    });
+  };
+
+  const handleFund = () => {
+    setLocalError("");
+
+    if (!isConnected) {
+      setLocalError("Please connect your wallet first.");
+      return;
+    }
+
+    if (!isValidToken) {
+      setLocalError("Enter a valid token address (0x…).");
+      return;
+    }
+
+    if (!isOwner) {
+      setLocalError("Only the contract owner can fund rewards.");
+      return;
+    }
+
+    if (!rewardAmount || Number(rewardAmount) <= 0) {
+      setLocalError("Enter a positive reward amount.");
+      return;
+    }
+
+    if (!durationDays || Number(durationDays) <= 0) {
+      setLocalError("Enter a positive duration in days.");
+      return;
+    }
+
+    let parsedReward;
+    try {
+      parsedReward = parseUnits(rewardAmount, DEFAULT_DECIMALS);
+    } catch (e) {
+      setLocalError("Invalid reward amount format.");
+      return;
+    }
+
+    let daysBigInt;
+    try {
+      daysBigInt = BigInt(durationDays);
+    } catch (e) {
+      setLocalError("Invalid duration format.");
+      return;
+    }
+
+    const durationSeconds = daysBigInt * 24n * 60n * 60n;
+
+    writeContract({
+      address: STAKING_ADDRESS,
+      abi: stakingABI.abi,
+      functionName: "fundRewards",
+      args: [selectedToken, parsedReward, durationSeconds],
     });
   };
 
@@ -333,6 +405,91 @@ export default function StakingPage() {
               {loading ? "Processing..." : "Withdraw"}
             </button>
           </div>
+        </div>
+      )}
+
+      {isConnected && isValidToken && isOwner && (
+        <div className="bg-[#0A1020] border border-emerald-700 rounded-xl p-4 space-y-3">
+          <h2 className="text-sm font-semibold text-emerald-400">
+            Admin – Fund rewards
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-slate-400">Reward amount</label>
+              <input
+                type="number"
+                min="0"
+                step="0.0001"
+                value={rewardAmount}
+                onChange={(e) => setRewardAmount(e.target.value)}
+                className="w-full bg-[#111728] border border-slate-800 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                placeholder="100000"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-slate-400">Duration (days)</label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={durationDays}
+                onChange={(e) => setDurationDays(e.target.value)}
+                className="w-full bg-[#111728] border border-slate-800 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                placeholder="30"
+              />
+            </div>
+          </div>
+          <div className="flex flex-row gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                if (!isOwner || !isValidToken || !rewardAmount) return;
+                const parsed = parseUnits(rewardAmount, DEFAULT_DECIMALS);
+                writeContract({
+                  address: selectedToken,
+                  abi: [
+                    {
+                      name: "approve",
+                      type: "function",
+                      stateMutability: "nonpayable",
+                      inputs: [
+                        { name: "spender", type: "address" },
+                        { name: "amount", type: "uint256" },
+                      ],
+                      outputs: [],
+                    },
+                  ],
+                  functionName: "approve",
+                  args: [STAKING_ADDRESS, parsed],
+                });
+              }}
+              disabled={loading || !rewardAmount || Number(rewardAmount) <= 0}
+              className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? "Approving..." : "Approve contract"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleFund}
+              disabled={
+                loading ||
+                !rewardAmount ||
+                Number(rewardAmount) <= 0 ||
+                !durationDays ||
+                Number(durationDays) <= 0
+              }
+              className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? "Funding..." : "Fund rewards"}
+            </button>
+          </div>
+
+          <p className="text-[0.7rem] text-slate-400">
+            Step 1: Approve the amount. Step 2: Fund rewards.
+          </p>
         </div>
       )}
 
