@@ -17,6 +17,10 @@ const DEFAULT_DECIMALS = 18;
 export default function StakingPage() {
   const { address, isConnected } = useAccount();
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isConnectedSafe = mounted && isConnected;
+
   const [selectedToken, setSelectedToken] = useState("");
   const [amount, setAmount] = useState("");
   const [rewardAmount, setRewardAmount] = useState("");
@@ -105,7 +109,7 @@ export default function StakingPage() {
   const handleStake = () => {
     setLocalError("");
 
-    if (!isConnected) {
+    if (!isConnectedSafe) {
       setLocalError("Please connect your wallet first.");
       return;
     }
@@ -139,7 +143,7 @@ export default function StakingPage() {
   const handleWithdraw = () => {
     setLocalError("");
 
-    if (!isConnected) {
+    if (!isConnectedSafe) {
       setLocalError("Please connect your wallet first.");
       return;
     }
@@ -173,7 +177,7 @@ export default function StakingPage() {
   const handleClaim = () => {
     setLocalError("");
 
-    if (!isConnected) {
+    if (!isConnectedSafe) {
       setLocalError("Please connect your wallet first.");
       return;
     }
@@ -194,7 +198,7 @@ export default function StakingPage() {
   const handleFund = () => {
     setLocalError("");
 
-    if (!isConnected) {
+    if (!isConnectedSafe) {
       setLocalError("Please connect your wallet first.");
       return;
     }
@@ -348,7 +352,7 @@ export default function StakingPage() {
         </div>
       )}
 
-      {isConnected && isValidToken && (
+      {isConnectedSafe && isValidToken && (
         <div className="bg-[#0A1020] border border-slate-800 rounded-xl p-4 space-y-2">
           <h2 className="text-sm font-semibold text-slate-100 mb-1">
             Your position
@@ -375,7 +379,7 @@ export default function StakingPage() {
         </div>
       )}
 
-      {isConnected && isValidToken && (
+      {isConnectedSafe && isValidToken && (
         <div className="bg-[#0A1020] border border-slate-800 rounded-xl p-4">
           <label className="text-sm text-slate-400">Amount</label>
           <input
@@ -408,7 +412,7 @@ export default function StakingPage() {
         </div>
       )}
 
-      {isConnected && isValidToken && isOwner && (
+      {isConnectedSafe && isValidToken && isOwner && (
         <div className="bg-[#0A1020] border border-emerald-700 rounded-xl p-4 space-y-3">
           <h2 className="text-sm font-semibold text-emerald-400">
             Admin – Fund rewards
@@ -493,7 +497,7 @@ export default function StakingPage() {
         </div>
       )}
 
-      {!isConnected && (
+      {!isConnectedSafe && (
         <p className="text-center text-xs text-slate-400">
           Connect your wallet to use staking.
         </p>

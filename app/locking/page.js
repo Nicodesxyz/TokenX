@@ -18,6 +18,10 @@ const DEFAULT_DECIMALS = 18;
 export default function LockingPage() {
   const { address, isConnected } = useAccount();
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isConnectedSafe = mounted && isConnected;
+
   const [tokenAddress, setTokenAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [unlockAt, setUnlockAt] = useState("");
@@ -93,7 +97,7 @@ export default function LockingPage() {
   const handleCreateLock = () => {
     setLocalError("");
 
-    if (!isConnected) {
+    if (!isConnectedSafe) {
       setLocalError("Please connect your wallet first.");
       return;
     }
@@ -151,7 +155,7 @@ export default function LockingPage() {
   const handleWithdraw = (lockId) => {
     setLocalError("");
 
-    if (!isConnected) {
+    if (!isConnectedSafe) {
       setLocalError("Please connect your wallet first.");
       return;
     }
@@ -317,20 +321,20 @@ export default function LockingPage() {
         <button
           type="button"
           onClick={handleCreateLock}
-          disabled={txLoading || !isConnected || !LOCKER_ADDRESS}
+          disabled={txLoading || !isConnectedSafe || !LOCKER_ADDRESS}
           className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {txLoading ? "Creating lock..." : "Create lock"}
         </button>
 
-        {!isConnected && (
+        {!isConnectedSafe && (
           <p className="text-[0.7rem] text-slate-400">
             Connect your wallet to create a lock.
           </p>
         )}
       </section>
 
-      {isConnected && LOCKER_ADDRESS && (
+      {isConnectedSafe && LOCKER_ADDRESS && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-slate-100">
             My locks ({lockIds.length})
@@ -429,7 +433,7 @@ export default function LockingPage() {
         </section>
       )}
 
-      {!isConnected && (
+      {!isConnectedSafe && (
         <p className="text-center text-xs text-slate-400">
           Connect your wallet to view and manage your locks.
         </p>

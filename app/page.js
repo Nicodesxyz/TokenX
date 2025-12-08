@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useReadContract, useReadContracts } from "wagmi";
 import { formatUnits } from "viem";
 
@@ -11,6 +11,11 @@ const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS;
 
 export default function HomePage() {
   const [copiedAddress, setCopiedAddress] = useState(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const {
     data: tokensData,
@@ -20,6 +25,9 @@ export default function HomePage() {
     address: FACTORY_ADDRESS,
     abi: factoryABI.abi,
     functionName: "getAllTokens",
+    query: {
+      enabled: mounted && !!FACTORY_ADDRESS,
+    },
   });
 
   const tokens = useMemo(() => tokensData ?? [], [tokensData]);
@@ -38,12 +46,12 @@ export default function HomePage() {
 
   const { data: ownersData, isLoading: ownersLoading } = useReadContracts({
     contracts: ownerCalls,
-    query: { enabled: tokens.length > 0 },
+    query: { enabled: mounted && tokens.length > 0 },
   });
 
   const { data: supplyData, isLoading: supplyLoading } = useReadContracts({
     contracts: supplyCalls,
-    query: { enabled: tokens.length > 0 },
+    query: { enabled: mounted && tokens.length > 0 },
   });
 
   const loading = isTokensLoading || ownersLoading || supplyLoading;
@@ -155,18 +163,18 @@ export default function HomePage() {
                   {mintable ? (
                     <span
                       className="
-                      text-[0.65rem] px-2 py-0.5 rounded-full
-                      border border-emerald-500/60 text-emerald-300 bg-emerald-500/10
-                    "
+                        text-[0.65rem] px-2 py-0.5 rounded-full
+                        border border-emerald-500/60 text-emerald-300 bg-emerald-500/10
+                      "
                     >
                       Mintable
                     </span>
                   ) : (
                     <span
                       className="
-                      text-[0.65rem] px-2 py-0.5 rounded-full
-                      border border-slate-700 text-slate-300 bg-slate-800
-                    "
+                        text-[0.65rem] px-2 py-0.5 rounded-full
+                        border border-slate-700 text-slate-300 bg-slate-800
+                      "
                     >
                       Fixed
                     </span>
@@ -175,18 +183,18 @@ export default function HomePage() {
                   {burnable ? (
                     <span
                       className="
-                      text-[0.65rem] px-2 py-0.5 rounded-full
-                      border border-orange-400/60 text-orange-200 bg-orange-400/10
-                    "
+                        text-[0.65rem] px-2 py-0.5 rounded-full
+                        border border-orange-400/60 text-orange-200 bg-orange-400/10
+                      "
                     >
                       Burnable
                     </span>
                   ) : (
                     <span
                       className="
-                      text-[0.65rem] px-2 py-0.5 rounded-full
-                      border border-slate-700 text-slate-300 bg-slate-800
-                    "
+                        text-[0.65rem] px-2 py-0.5 rounded-full
+                        border border-slate-700 text-slate-300 bg-slate-800
+                      "
                     >
                       Non-burnable
                     </span>

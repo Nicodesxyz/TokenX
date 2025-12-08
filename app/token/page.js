@@ -14,6 +14,10 @@ const SUPPORTED_CHAIN_ID = 11155111; // Sepolia
 export default function TokenCreatorPage() {
   const { address, chainId, status: connectionStatus } = useConnection();
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const chainIdSafe = mounted ? chainId : undefined;
+
   const [form, setForm] = useState({
     name: "",
     symbol: "",
@@ -67,7 +71,9 @@ export default function TokenCreatorPage() {
   ]);
 
   const isWrongChain =
-    chainId !== undefined && chainId !== null && chainId !== SUPPORTED_CHAIN_ID;
+    chainIdSafe !== undefined &&
+    chainIdSafe !== null &&
+    chainIdSafe !== SUPPORTED_CHAIN_ID;
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
