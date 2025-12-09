@@ -8,7 +8,6 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { formatUnits, parseUnits } from "viem";
-
 import stakingABI from "../abi/MultiTokenStaking.json";
 
 const STAKING_ADDRESS = process.env.NEXT_PUBLIC_STAKING_ADDRESS;
@@ -18,19 +17,26 @@ export default function StakingPage() {
   const { address, isConnected } = useAccount();
 
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const isConnectedSafe = mounted && isConnected;
-
   const [selectedToken, setSelectedToken] = useState("");
   const [amount, setAmount] = useState("");
   const [rewardAmount, setRewardAmount] = useState("");
   const [durationDays, setDurationDays] = useState("30");
   const [localError, setLocalError] = useState("");
+  const [isApproved, setIsApproved] = useState(false);
+  const [currentAction, setCurrentAction] = useState(null);
+
+  useEffect(() => setMounted(true), []);
+  const isConnectedSafe = mounted && isConnected;
 
   const isValidToken =
     selectedToken &&
     selectedToken.startsWith("0x") &&
     selectedToken.length === 42;
+
+  useEffect(() => {
+    setIsApproved(false);
+    setCurrentAction(null);
+  }, [selectedToken, amount]);
 
   const { data: owner } = useReadContract({
     address: STAKING_ADDRESS,
@@ -103,8 +109,60 @@ export default function StakingPage() {
       refetchUser?.();
       setAmount("");
       setLocalError("");
+      setCurrentAction(null);
     }
   }, [isConfirmed, refetchPool, refetchEarned, refetchUser]);
+
+  const handleApprove = () => {
+    setLocalError("");
+
+    if (!isConnectedSafe) {
+      setLocalError("Please connect your wallet first.");
+      return;
+    }
+
+    if (!isValidToken) {
+      setLocalError("Enter a valid token address (0x…).");
+      return;
+    }
+
+    if (!amount || Number(amount) <= 0) {
+      setLocalError("Enter a positive amount.");
+      return;
+    }
+
+    let parsed;
+    try {
+      parsed = parseUnits(amount, DEFAULT_DECIMALS);
+    } catch {
+      setLocalError("Invalid amount format.");
+      return;
+    }
+
+    const approveAbi = [
+      {
+        name: "approve",
+        type: "function",
+        stateMutability: "nonpayable",
+        inputs: [
+          { name: "spender", type: "address" },
+          { name: "amount", type: "uint256" },
+        ],
+        outputs: [],
+      },
+    ];
+
+    setCurrentAction("approve");
+
+    writeContract({
+      address: selectedToken,
+      abi: approveAbi,
+      functionName: "approve",
+      args: [STAKING_ADDRESS, parsed],
+    });
+
+    setIsApproved(true);
+  };
 
   const handleStake = () => {
     setLocalError("");
@@ -127,10 +185,12 @@ export default function StakingPage() {
     let parsed;
     try {
       parsed = parseUnits(amount, DEFAULT_DECIMALS);
-    } catch (e) {
+    } catch {
       setLocalError("Invalid amount format.");
       return;
     }
+
+    setCurrentAction("stake");
 
     writeContract({
       address: STAKING_ADDRESS,
@@ -161,10 +221,12 @@ export default function StakingPage() {
     let parsed;
     try {
       parsed = parseUnits(amount, DEFAULT_DECIMALS);
-    } catch (e) {
+    } catch {
       setLocalError("Invalid amount format.");
       return;
     }
+
+    setCurrentAction("withdraw");
 
     writeContract({
       address: STAKING_ADDRESS,
@@ -186,6 +248,8 @@ export default function StakingPage() {
       setLocalError("Enter a valid token address (0x…).");
       return;
     }
+
+    setCurrentAction("claim");
 
     writeContract({
       address: STAKING_ADDRESS,
@@ -226,7 +290,7 @@ export default function StakingPage() {
     let parsedReward;
     try {
       parsedReward = parseUnits(rewardAmount, DEFAULT_DECIMALS);
-    } catch (e) {
+    } catch {
       setLocalError("Invalid reward amount format.");
       return;
     }
@@ -234,12 +298,14 @@ export default function StakingPage() {
     let daysBigInt;
     try {
       daysBigInt = BigInt(durationDays);
-    } catch (e) {
+    } catch {
       setLocalError("Invalid duration format.");
       return;
     }
 
     const durationSeconds = daysBigInt * 24n * 60n * 60n;
+
+    setCurrentAction("fund");
 
     writeContract({
       address: STAKING_ADDRESS,
@@ -261,12 +327,10 @@ export default function StakingPage() {
       if (typeof totalStakedRaw === "bigint") {
         totalStaked = formatUnits(totalStakedRaw, DEFAULT_DECIMALS);
       }
-
       rewardRateDisplay =
         typeof rewardRateRaw === "bigint"
           ? rewardRateRaw.toString()
           : String(rewardRateRaw ?? "0");
-
       if (typeof periodFinishRaw === "bigint" && periodFinishRaw > 0n) {
         const ts = Number(periodFinishRaw);
         periodEndString = new Date(ts * 1000).toLocaleString();
@@ -280,6 +344,13 @@ export default function StakingPage() {
     typeof earned === "bigint" ? formatUnits(earned, DEFAULT_DECIMALS) : "0";
 
   const stakedDisplay = formatUnits(stakedBalance, DEFAULT_DECIMALS);
+
+  const mainButtonLabel = () => {
+    if (loading && currentAction === "approve") return "Approving...";
+    if (loading && currentAction === "stake") return "Staking...";
+    if (!isApproved) return "Approve";
+    return "Stake";
+  };
 
   return (
     <div className="space-y-6">
@@ -332,19 +403,16 @@ export default function StakingPage() {
           <h2 className="text-sm font-semibold text-slate-100 mb-1">
             Pool stats
           </h2>
-
           <p className="text-xs text-slate-400">
             Total staked:{" "}
             <span className="font-mono text-slate-100">{totalStaked}</span>
           </p>
-
           <p className="text-xs text-slate-400">
             Reward rate:{" "}
             <span className="font-mono text-slate-100">
               {rewardRateDisplay} tokens/sec
             </span>
           </p>
-
           <p className="text-xs text-slate-400">
             Period ends:{" "}
             <span className="font-mono text-slate-100">{periodEndString}</span>
@@ -357,24 +425,23 @@ export default function StakingPage() {
           <h2 className="text-sm font-semibold text-slate-100 mb-1">
             Your position
           </h2>
-
           <p className="text-xs text-slate-400">
             Staked:{" "}
             <span className="font-mono text-emerald-400">{stakedDisplay}</span>
           </p>
-
           <p className="text-xs text-slate-400">
             Earned:{" "}
             <span className="font-mono text-yellow-300">{earnedDisplay}</span>
           </p>
-
           <button
             type="button"
             onClick={handleClaim}
             disabled={loading || !earned || earned === 0n}
             className="mt-3 inline-flex items-center rounded-lg bg-yellow-600 px-4 py-2 text-xs font-semibold text-black hover:bg-yellow-500 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {loading ? "Claiming..." : "Claim rewards"}
+            {loading && currentAction === "claim"
+              ? "Claiming..."
+              : "Claim rewards"}
           </button>
         </div>
       )}
@@ -393,11 +460,11 @@ export default function StakingPage() {
           <div className="flex gap-3 mt-4">
             <button
               type="button"
-              onClick={handleStake}
+              onClick={isApproved ? handleStake : handleApprove}
               disabled={loading}
               className="flex-1 inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading ? "Processing..." : "Stake"}
+              {mainButtonLabel()}
             </button>
 
             <button
@@ -406,7 +473,9 @@ export default function StakingPage() {
               disabled={loading}
               className="flex-1 inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold hover:bg-red-500 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading ? "Processing..." : "Withdraw"}
+              {loading && currentAction === "withdraw"
+                ? "Processing..."
+                : "Withdraw"}
             </button>
           </div>
         </div>
@@ -445,12 +514,14 @@ export default function StakingPage() {
               />
             </div>
           </div>
+
           <div className="flex flex-row gap-1">
             <button
               type="button"
               onClick={() => {
                 if (!isOwner || !isValidToken || !rewardAmount) return;
                 const parsed = parseUnits(rewardAmount, DEFAULT_DECIMALS);
+                setCurrentAction("admin-approve");
                 writeContract({
                   address: selectedToken,
                   abi: [
@@ -472,7 +543,9 @@ export default function StakingPage() {
               disabled={loading || !rewardAmount || Number(rewardAmount) <= 0}
               className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading ? "Approving..." : "Approve contract"}
+              {loading && currentAction === "admin-approve"
+                ? "Approving..."
+                : "Approve contract"}
             </button>
 
             <button
@@ -487,7 +560,9 @@ export default function StakingPage() {
               }
               className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading ? "Funding..." : "Fund rewards"}
+              {loading && currentAction === "fund"
+                ? "Funding..."
+                : "Fund rewards"}
             </button>
           </div>
 

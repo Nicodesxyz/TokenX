@@ -9,7 +9,6 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { formatUnits, parseUnits } from "viem";
-
 import lockerABI from "../abi/MultiTokenLocker.json";
 
 const LOCKER_ADDRESS = process.env.NEXT_PUBLIC_LOCKER_ADDRESS;
@@ -19,45 +18,29 @@ export default function LockingPage() {
   const { address, isConnected } = useAccount();
 
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const isConnectedSafe = mounted && isConnected;
-
   const [tokenAddress, setTokenAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [unlockAt, setUnlockAt] = useState("");
   const [memo, setMemo] = useState("");
   const [localError, setLocalError] = useState("");
+  const [isApproved, setIsApproved] = useState(false);
 
-  const {
-    writeContract,
-    data: txHash,
-    isPending,
-    error: writeError,
-  } = useWriteContract();
-
-  const {
-    isLoading: isConfirming,
-    isSuccess: isConfirmed,
-    error: txError,
-  } = useWaitForTransactionReceipt({
-    hash: txHash,
-  });
-
-  const txLoading = isPending || isConfirming;
-  const chainError = writeError || txError;
-  const chainErrorMsg = chainError?.shortMessage || chainError?.message;
+  useEffect(() => setMounted(true), []);
+  const isConnectedSafe = mounted && isConnected;
 
   const isValidToken =
     tokenAddress && tokenAddress.startsWith("0x") && tokenAddress.length === 42;
+
+  useEffect(() => {
+    setIsApproved(false);
+  }, [tokenAddress]);
 
   const { data: lockIdsData, refetch: refetchLockIds } = useReadContract({
     address: LOCKER_ADDRESS,
     abi: lockerABI.abi,
     functionName: "getUserLocks",
     args: address ? [address] : undefined,
-    query: {
-      enabled: !!LOCKER_ADDRESS && !!address,
-    },
+    query: { enabled: !!LOCKER_ADDRESS && !!address },
   });
 
   const lockIds = useMemo(
@@ -67,8 +50,8 @@ export default function LockingPage() {
 
   const {
     data: locksData,
-    refetch: refetchLocks,
     isLoading: locksLoading,
+    refetch: refetchLocks,
   } = useReadContracts({
     contracts:
       LOCKER_ADDRESS && lockIds.length > 0
@@ -79,56 +62,131 @@ export default function LockingPage() {
             args: [id],
           }))
         : [],
-    query: {
-      enabled: !!LOCKER_ADDRESS && lockIds.length > 0,
-    },
+    query: { enabled: !!LOCKER_ADDRESS && lockIds.length > 0 },
   });
 
+  const {
+    writeContract: writeApprove,
+    data: approveHash,
+    isPending: isApprovePending,
+    error: approveError,
+  } = useWriteContract();
+
+  const {
+    writeContract: writeLock,
+    data: lockHash,
+    isPending: isLockPending,
+    error: lockError,
+  } = useWriteContract();
+
+  const { isLoading: isApproveConfirming, isSuccess: isApproveConfirmed } =
+    useWaitForTransactionReceipt({ hash: approveHash });
+
+  const { isLoading: isLockConfirming, isSuccess: isLockConfirmed } =
+    useWaitForTransactionReceipt({ hash: lockHash });
+
   useEffect(() => {
-    if (isConfirmed) {
+    if (isApproveConfirmed) setIsApproved(true);
+  }, [isApproveConfirmed]);
+
+  useEffect(() => {
+    if (isLockConfirmed) {
       refetchLockIds?.();
       refetchLocks?.();
       setAmount("");
+      setUnlockAt("");
       setMemo("");
       setLocalError("");
+      setIsApproved(false);
     }
-  }, [isConfirmed, refetchLockIds, refetchLocks]);
+  }, [isLockConfirmed, refetchLockIds, refetchLocks]);
+
+  const approving = isApprovePending || isApproveConfirming;
+  const locking = isLockPending || isLockConfirming;
+
+  const chainError = approveError || lockError;
+  const chainErrorMsg = chainError?.shortMessage || chainError?.message;
+
+  const handleApprove = () => {
+    setLocalError("");
+
+    if (!isConnectedSafe) {
+      setLocalError("Connect your wallet first.");
+      return;
+    }
+    if (!LOCKER_ADDRESS) {
+      setLocalError("Locker contract address is not configured.");
+      return;
+    }
+    if (!isValidToken) {
+      setLocalError("Invalid token address.");
+      return;
+    }
+    if (!amount || Number(amount) <= 0) {
+      setLocalError("Enter a positive amount.");
+      return;
+    }
+
+    let parsedAmount;
+    try {
+      parsedAmount = parseUnits(amount, DEFAULT_DECIMALS);
+    } catch {
+      setLocalError("Invalid amount format.");
+      return;
+    }
+
+    const approveAbi = [
+      {
+        name: "approve",
+        type: "function",
+        stateMutability: "nonpayable",
+        inputs: [
+          { name: "spender", type: "address" },
+          { name: "amount", type: "uint256" },
+        ],
+        outputs: [],
+      },
+    ];
+
+    writeApprove({
+      address: tokenAddress,
+      abi: approveAbi,
+      functionName: "approve",
+      args: [LOCKER_ADDRESS, parsedAmount],
+    });
+  };
 
   const handleCreateLock = () => {
     setLocalError("");
 
     if (!isConnectedSafe) {
-      setLocalError("Please connect your wallet first.");
+      setLocalError("Connect your wallet first.");
       return;
     }
-
     if (!LOCKER_ADDRESS) {
       setLocalError("Locker contract address is not configured.");
       return;
     }
-
     if (!isValidToken) {
-      setLocalError("Enter a valid token contract address (0x...).");
+      setLocalError("Invalid token address.");
       return;
     }
-
     if (!amount || Number(amount) <= 0) {
-      setLocalError("Enter a positive amount to lock.");
+      setLocalError("Enter a positive amount.");
       return;
     }
-
     if (!unlockAt) {
-      setLocalError("Choose an unlock date and time.");
+      setLocalError("Choose an unlock date.");
       return;
     }
 
-    const unlockTimestampMs = Date.parse(unlockAt);
-    if (Number.isNaN(unlockTimestampMs)) {
-      setLocalError("Invalid unlock date format.");
+    const ms = Date.parse(unlockAt);
+    if (Number.isNaN(ms)) {
+      setLocalError("Invalid unlock date.");
       return;
     }
 
-    const unlockTimestamp = Math.floor(unlockTimestampMs / 1000);
+    const unlockTimestamp = Math.floor(ms / 1000);
     const now = Math.floor(Date.now() / 1000);
 
     if (unlockTimestamp <= now) {
@@ -139,12 +197,12 @@ export default function LockingPage() {
     let parsedAmount;
     try {
       parsedAmount = parseUnits(amount, DEFAULT_DECIMALS);
-    } catch (e) {
+    } catch {
       setLocalError("Invalid amount format.");
       return;
     }
 
-    writeContract({
+    writeLock({
       address: LOCKER_ADDRESS,
       abi: lockerABI.abi,
       functionName: "lockTokens",
@@ -152,84 +210,90 @@ export default function LockingPage() {
     });
   };
 
-  const handleWithdraw = (lockId) => {
-    setLocalError("");
+  const handleMainClick = () => {
+    if (isApproved) handleCreateLock();
+    else handleApprove();
+  };
 
-    if (!isConnectedSafe) {
-      setLocalError("Please connect your wallet first.");
-      return;
-    }
-
-    writeContract({
-      address: LOCKER_ADDRESS,
-      abi: lockerABI.abi,
-      functionName: "withdraw",
-      args: [lockId],
-    });
+  const mainButtonLabel = () => {
+    if (approving) return "Approving...";
+    if (locking) return "Locking...";
+    if (isApproved) return "Create lock";
+    return "Approve";
   };
 
   const parsedLocks = useMemo(() => {
     if (!locksData || locksData.length === 0) return [];
-
     return locksData
       .map((entry, idx) => {
         const result = entry?.result ?? entry;
         if (!result) return null;
 
         const token = result[0];
-        const owner = result[1];
         const amountRaw = result[2];
-        const startTimeRaw = result[3];
-        const unlockTimeRaw = result[4];
+        const startRaw = result[3];
+        const unlockRaw = result[4];
         const claimed = result[5];
         const memoStr = result[6];
-
         const lockId = lockIds[idx];
 
-        let amountDisplay = "0";
-        if (typeof amountRaw === "bigint") {
-          amountDisplay = formatUnits(amountRaw, DEFAULT_DECIMALS);
-        }
+        const amountDisplay =
+          typeof amountRaw === "bigint"
+            ? formatUnits(amountRaw, DEFAULT_DECIMALS)
+            : "0";
 
-        let startDate = "-";
-        if (typeof startTimeRaw === "bigint" && startTimeRaw > 0n) {
-          const n = Number(startTimeRaw);
-          startDate = new Date(n * 1000).toLocaleString();
-        }
+        const start =
+          typeof startRaw === "bigint"
+            ? new Date(Number(startRaw) * 1000).toLocaleString()
+            : "-";
 
-        let unlockDate = "-";
-        if (typeof unlockTimeRaw === "bigint" && unlockTimeRaw > 0n) {
-          const n = Number(unlockTimeRaw);
-          unlockDate = new Date(n * 1000).toLocaleString();
-        }
+        const unlock =
+          typeof unlockRaw === "bigint"
+            ? new Date(Number(unlockRaw) * 1000).toLocaleString()
+            : "-";
 
-        const nowSec = Math.floor(Date.now() / 1000);
+        const now = Math.floor(Date.now() / 1000);
         const unlockSec =
-          typeof unlockTimeRaw === "bigint"
-            ? Number(unlockTimeRaw)
-            : Number(unlockTimeRaw || 0);
+          typeof unlockRaw === "bigint"
+            ? Number(unlockRaw)
+            : Number(unlockRaw || 0);
 
-        const isUnlockable = !claimed && unlockSec > 0 && nowSec >= unlockSec;
+        const ready = !claimed && unlockSec <= now;
 
         let status = "Locked";
         if (claimed) status = "Claimed";
-        else if (isUnlockable) status = "Ready to withdraw";
+        else if (ready) status = "Ready to withdraw";
 
         return {
-          lockId,
           token,
-          owner,
-          amountDisplay,
-          startDate,
-          unlockDate,
-          claimed,
-          isUnlockable,
-          status,
           memo: memoStr,
+          amountDisplay,
+          start,
+          unlock,
+          status,
+          ready,
+          lockId,
         };
       })
       .filter(Boolean);
   }, [locksData, lockIds]);
+
+  const handleWithdraw = (lockId) => {
+    if (!isConnectedSafe) {
+      setLocalError("Connect your wallet first.");
+      return;
+    }
+    if (!LOCKER_ADDRESS) {
+      setLocalError("Locker contract address is not configured.");
+      return;
+    }
+    writeLock({
+      address: LOCKER_ADDRESS,
+      abi: lockerABI.abi,
+      functionName: "withdraw",
+      args: [lockId],
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -241,23 +305,15 @@ export default function LockingPage() {
         </p>
       </div>
 
-      {!LOCKER_ADDRESS && (
-        <div className="rounded-xl border border-red-500/40 bg-red-950/50 p-4 text-sm text-red-100">
-          Locker contract address is not configured. Set{" "}
-          <code className="font-mono text-xs">NEXT_PUBLIC_LOCKER_ADDRESS</code>{" "}
-          in your <code>.env</code>.
-        </div>
-      )}
-
       {localError && (
         <div className="rounded-xl border border-yellow-500/40 bg-yellow-950/40 p-4 text-sm text-yellow-100">
-          ⚠️ {localError}
+          {localError}
         </div>
       )}
 
       {chainErrorMsg && (
         <div className="rounded-xl border border-red-500/40 bg-red-950/60 p-4 text-sm text-red-100">
-          ⚠️ Transaction error: {chainErrorMsg}
+          {chainErrorMsg}
         </div>
       )}
 
@@ -270,16 +326,11 @@ export default function LockingPage() {
           <label className="text-xs text-slate-400">Token address</label>
           <input
             type="text"
-            placeholder="0x... (paste from Home → Copy)"
-            className="w-full bg-[#101528] border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             value={tokenAddress}
             onChange={(e) => setTokenAddress(e.target.value.trim())}
+            placeholder="0x... (paste from Home → Copy)"
+            className="w-full bg-[#101528] border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           />
-          {!isValidToken && tokenAddress && (
-            <p className="text-[0.7rem] text-red-400">
-              Token address must be a valid 42-character 0x address.
-            </p>
-          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -287,10 +338,10 @@ export default function LockingPage() {
             <label className="text-xs text-slate-400">Amount to lock</label>
             <input
               type="text"
-              placeholder="0.0"
-              className="w-full bg-[#101528] border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.0"
+              className="w-full bg-[#101528] border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
@@ -298,9 +349,9 @@ export default function LockingPage() {
             <label className="text-xs text-slate-400">Unlock date & time</label>
             <input
               type="datetime-local"
-              className="w-full bg-[#101528] border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               value={unlockAt}
               onChange={(e) => setUnlockAt(e.target.value)}
+              className="w-full bg-[#101528] border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
         </div>
@@ -311,20 +362,20 @@ export default function LockingPage() {
           </label>
           <input
             type="text"
-            placeholder="e.g. Team vesting 6 months, Liquidity lock 1 year"
-            className="w-full bg-[#101528] border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
+            placeholder="e.g. Team vesting 6 months"
+            className="w-full bg-[#101528] border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
 
         <button
           type="button"
-          onClick={handleCreateLock}
-          disabled={txLoading || !isConnectedSafe || !LOCKER_ADDRESS}
+          onClick={handleMainClick}
+          disabled={!isConnectedSafe || !LOCKER_ADDRESS || approving || locking}
           className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {txLoading ? "Creating lock..." : "Create lock"}
+          {mainButtonLabel()}
         </button>
 
         {!isConnectedSafe && (
@@ -358,7 +409,7 @@ export default function LockingPage() {
                 key={lock.lockId.toString()}
                 className="rounded-xl border border-slate-800 bg-[#0A1020]/90 p-4 flex flex-col gap-2"
               >
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between">
                   <div className="text-xs text-slate-400">
                     Lock ID:{" "}
                     <span className="font-mono text-slate-100">
@@ -366,16 +417,13 @@ export default function LockingPage() {
                     </span>
                   </div>
                   <span
-                    className={`
-                      text-[0.65rem] px-2 py-0.5 rounded-full border
-                      ${
-                        lock.status === "Ready to withdraw"
-                          ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
-                          : lock.status === "Claimed"
-                          ? "border-slate-700 bg-slate-800 text-slate-300"
-                          : "border-blue-500/60 bg-blue-500/10 text-blue-300"
-                      }
-                    `}
+                    className={`text-[0.65rem] px-2 py-0.5 rounded-full border ${
+                      lock.status === "Ready to withdraw"
+                        ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
+                        : lock.status === "Claimed"
+                        ? "border-slate-700 bg-slate-800 text-slate-300"
+                        : "border-blue-500/60 bg-blue-500/10 text-blue-300"
+                    }`}
                   >
                     {lock.status}
                   </span>
@@ -397,15 +445,13 @@ export default function LockingPage() {
 
                 <div className="text-xs text-slate-400">
                   Start:{" "}
-                  <span className="font-mono text-slate-200">
-                    {lock.startDate}
-                  </span>
+                  <span className="font-mono text-slate-200">{lock.start}</span>
                 </div>
 
                 <div className="text-xs text-slate-400">
                   Unlock:{" "}
                   <span className="font-mono text-slate-200">
-                    {lock.unlockDate}
+                    {lock.unlock}
                   </span>
                 </div>
 
@@ -415,17 +461,15 @@ export default function LockingPage() {
                   </div>
                 )}
 
-                {lock.isUnlockable && (
-                  <div className="pt-2">
-                    <button
-                      type="button"
-                      onClick={() => handleWithdraw(lock.lockId)}
-                      disabled={txLoading}
-                      className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-3 py-1.5 text-[0.75rem] font-semibold hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {txLoading ? "Withdrawing..." : "Withdraw"}
-                    </button>
-                  </div>
+                {lock.ready && (
+                  <button
+                    type="button"
+                    onClick={() => handleWithdraw(lock.lockId)}
+                    disabled={locking || approving}
+                    className="mt-2 inline-flex items-center justify-center rounded-lg bg-emerald-600 px-3 py-1.5 text-[0.75rem] font-semibold hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {locking ? "Withdrawing..." : "Withdraw"}
+                  </button>
                 )}
               </div>
             ))}
