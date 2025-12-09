@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   useAccount,
   useReadContract,
@@ -13,6 +13,19 @@ import stakingABI from "../abi/MultiTokenStaking.json";
 const STAKING_ADDRESS = process.env.NEXT_PUBLIC_STAKING_ADDRESS;
 const DEFAULT_DECIMALS = 18;
 
+const approveAbi = [
+  {
+    name: "approve",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [],
+  },
+];
+
 export default function StakingPage() {
   const { address, isConnected } = useAccount();
 
@@ -22,7 +35,8 @@ export default function StakingPage() {
   const [rewardAmount, setRewardAmount] = useState("");
   const [durationDays, setDurationDays] = useState("30");
   const [localError, setLocalError] = useState("");
-  const [isApproved, setIsApproved] = useState(false);
+  const [isStakeApproved, setIsStakeApproved] = useState(false);
+  const [isPoolApproved, setIsPoolApproved] = useState(false);
   const [currentAction, setCurrentAction] = useState(null);
 
   useEffect(() => setMounted(true), []);
@@ -34,9 +48,9 @@ export default function StakingPage() {
     selectedToken.length === 42;
 
   useEffect(() => {
-    setIsApproved(false);
-    setCurrentAction(null);
-  }, [selectedToken, amount]);
+    setIsStakeApproved(false);
+    setIsPoolApproved(false);
+  }, [selectedToken, address]);
 
   const { data: owner } = useReadContract({
     address: STAKING_ADDRESS,
@@ -62,20 +76,32 @@ export default function StakingPage() {
     query: { enabled: !!STAKING_ADDRESS && isValidToken },
   });
 
+  const poolExists = !!(poolInfo && poolInfo[0]);
+
   const { data: earned, refetch: refetchEarned } = useReadContract({
     address: STAKING_ADDRESS,
     abi: stakingABI.abi,
     functionName: "earned",
-    args: isValidToken && address ? [selectedToken, address] : undefined,
-    query: { enabled: !!STAKING_ADDRESS && isValidToken && !!address },
+    args:
+      isValidToken && address && poolExists
+        ? [selectedToken, address]
+        : undefined,
+    query: {
+      enabled: !!STAKING_ADDRESS && isValidToken && !!address && poolExists,
+    },
   });
 
   const { data: userData, refetch: refetchUser } = useReadContract({
     address: STAKING_ADDRESS,
     abi: stakingABI.abi,
     functionName: "userData",
-    args: isValidToken && address ? [selectedToken, address] : undefined,
-    query: { enabled: !!STAKING_ADDRESS && isValidToken && !!address },
+    args:
+      isValidToken && address && poolExists
+        ? [selectedToken, address]
+        : undefined,
+    query: {
+      enabled: !!STAKING_ADDRESS && isValidToken && !!address && poolExists,
+    },
   });
 
   const stakedBalance = useMemo(() => {
@@ -84,50 +110,84 @@ export default function StakingPage() {
   }, [userData]);
 
   const {
-    writeContract,
-    data: txHash,
-    isPending,
-    error: writeError,
+    writeContract: writeApproveStake,
+    data: stakeApproveHash,
+    isPending: isStakeApprovePending,
+    error: stakeApproveError,
   } = useWriteContract();
 
   const {
-    isLoading: isConfirming,
-    isSuccess: isConfirmed,
-    error: txError,
-  } = useWaitForTransactionReceipt({
-    hash: txHash,
-  });
+    writeContract: writeApprovePool,
+    data: poolApproveHash,
+    isPending: isPoolApprovePending,
+    error: poolApproveError,
+  } = useWriteContract();
 
-  const loading = isPending || isConfirming;
-  const chainError = writeError || txError;
-  const chainErrorMsg = chainError?.shortMessage || chainError?.message;
+  const {
+    writeContract: writeMain,
+    data: mainHash,
+    isPending: isMainPending,
+    error: mainError,
+  } = useWriteContract();
+
+  const {
+    isLoading: isStakeApproveConfirming,
+    isSuccess: stakeApproveConfirmed,
+  } = useWaitForTransactionReceipt({ hash: stakeApproveHash });
+
+  const {
+    isLoading: isPoolApproveConfirming,
+    isSuccess: poolApproveConfirmed,
+  } = useWaitForTransactionReceipt({ hash: poolApproveHash });
+
+  const { isLoading: isMainConfirming, isSuccess: isMainConfirmed } =
+    useWaitForTransactionReceipt({ hash: mainHash });
 
   useEffect(() => {
-    if (isConfirmed) {
+    if (stakeApproveConfirmed) setIsStakeApproved(true);
+  }, [stakeApproveConfirmed]);
+
+  useEffect(() => {
+    if (poolApproveConfirmed) setIsPoolApproved(true);
+  }, [poolApproveConfirmed]);
+
+  useEffect(() => {
+    if (isMainConfirmed) {
       refetchPool?.();
       refetchEarned?.();
       refetchUser?.();
-      setAmount("");
+      if (currentAction === "stake") {
+        setAmount("");
+      }
       setLocalError("");
       setCurrentAction(null);
     }
-  }, [isConfirmed, refetchPool, refetchEarned, refetchUser]);
+  }, [isMainConfirmed, currentAction, refetchPool, refetchEarned, refetchUser]);
 
-  const handleApprove = () => {
+  const approvingStake = isStakeApprovePending || isStakeApproveConfirming;
+  const approvingPool = isPoolApprovePending || isPoolApproveConfirming;
+  const mainLoading = isMainPending || isMainConfirming;
+
+  const chainError = stakeApproveError || poolApproveError || mainError;
+  const chainErrorMsg = chainError?.shortMessage || chainError?.message;
+
+  const handleApproveStake = () => {
     setLocalError("");
 
     if (!isConnectedSafe) {
       setLocalError("Please connect your wallet first.");
       return;
     }
-
+    if (!STAKING_ADDRESS) {
+      setLocalError("Staking contract address is not configured.");
+      return;
+    }
     if (!isValidToken) {
       setLocalError("Enter a valid token address (0x…).");
       return;
     }
-
     if (!amount || Number(amount) <= 0) {
-      setLocalError("Enter a positive amount.");
+      setLocalError("Enter a positive amount to approve.");
       return;
     }
 
@@ -139,29 +199,14 @@ export default function StakingPage() {
       return;
     }
 
-    const approveAbi = [
-      {
-        name: "approve",
-        type: "function",
-        stateMutability: "nonpayable",
-        inputs: [
-          { name: "spender", type: "address" },
-          { name: "amount", type: "uint256" },
-        ],
-        outputs: [],
-      },
-    ];
+    setCurrentAction("approve-stake");
 
-    setCurrentAction("approve");
-
-    writeContract({
+    writeApproveStake({
       address: selectedToken,
       abi: approveAbi,
       functionName: "approve",
       args: [STAKING_ADDRESS, parsed],
     });
-
-    setIsApproved(true);
   };
 
   const handleStake = () => {
@@ -171,12 +216,20 @@ export default function StakingPage() {
       setLocalError("Please connect your wallet first.");
       return;
     }
-
+    if (!STAKING_ADDRESS) {
+      setLocalError("Staking contract address is not configured.");
+      return;
+    }
     if (!isValidToken) {
       setLocalError("Enter a valid token address (0x…).");
       return;
     }
-
+    if (!poolExists) {
+      setLocalError(
+        "This token does not have a staking pool yet. From the creator wallet, use the admin section below to fund rewards and create the pool."
+      );
+      return;
+    }
     if (!amount || Number(amount) <= 0) {
       setLocalError("Enter a positive amount to stake.");
       return;
@@ -192,11 +245,12 @@ export default function StakingPage() {
 
     setCurrentAction("stake");
 
-    writeContract({
+    writeMain({
       address: STAKING_ADDRESS,
       abi: stakingABI.abi,
       functionName: "stake",
       args: [selectedToken, parsed],
+      gas: 800000n,
     });
   };
 
@@ -207,12 +261,18 @@ export default function StakingPage() {
       setLocalError("Please connect your wallet first.");
       return;
     }
-
+    if (!STAKING_ADDRESS) {
+      setLocalError("Staking contract address is not configured.");
+      return;
+    }
     if (!isValidToken) {
       setLocalError("Enter a valid token address (0x…).");
       return;
     }
-
+    if (!poolExists) {
+      setLocalError("This token has no active pool yet.");
+      return;
+    }
     if (!amount || Number(amount) <= 0) {
       setLocalError("Enter a positive amount to withdraw.");
       return;
@@ -228,7 +288,7 @@ export default function StakingPage() {
 
     setCurrentAction("withdraw");
 
-    writeContract({
+    writeMain({
       address: STAKING_ADDRESS,
       abi: stakingABI.abi,
       functionName: "withdraw",
@@ -243,19 +303,68 @@ export default function StakingPage() {
       setLocalError("Please connect your wallet first.");
       return;
     }
-
+    if (!STAKING_ADDRESS) {
+      setLocalError("Staking contract address is not configured.");
+      return;
+    }
     if (!isValidToken) {
       setLocalError("Enter a valid token address (0x…).");
+      return;
+    }
+    if (!poolExists) {
+      setLocalError("This token has no active pool yet.");
       return;
     }
 
     setCurrentAction("claim");
 
-    writeContract({
+    writeMain({
       address: STAKING_ADDRESS,
       abi: stakingABI.abi,
       functionName: "getReward",
       args: [selectedToken],
+    });
+  };
+
+  const handleApprovePool = () => {
+    setLocalError("");
+
+    if (!isConnectedSafe) {
+      setLocalError("Please connect your wallet first.");
+      return;
+    }
+    if (!STAKING_ADDRESS) {
+      setLocalError("Staking contract address is not configured.");
+      return;
+    }
+    if (!isValidToken) {
+      setLocalError("Enter a valid token address (0x…).");
+      return;
+    }
+    if (!isOwner) {
+      setLocalError("Only the contract owner can fund rewards.");
+      return;
+    }
+    if (!rewardAmount || Number(rewardAmount) <= 0) {
+      setLocalError("Enter a positive reward amount.");
+      return;
+    }
+
+    let parsed;
+    try {
+      parsed = parseUnits(rewardAmount, DEFAULT_DECIMALS);
+    } catch {
+      setLocalError("Invalid reward amount format.");
+      return;
+    }
+
+    setCurrentAction("approve-pool");
+
+    writeApprovePool({
+      address: selectedToken,
+      abi: approveAbi,
+      functionName: "approve",
+      args: [STAKING_ADDRESS, parsed],
     });
   };
 
@@ -266,22 +375,22 @@ export default function StakingPage() {
       setLocalError("Please connect your wallet first.");
       return;
     }
-
+    if (!STAKING_ADDRESS) {
+      setLocalError("Staking contract address is not configured.");
+      return;
+    }
     if (!isValidToken) {
       setLocalError("Enter a valid token address (0x…).");
       return;
     }
-
     if (!isOwner) {
       setLocalError("Only the contract owner can fund rewards.");
       return;
     }
-
     if (!rewardAmount || Number(rewardAmount) <= 0) {
       setLocalError("Enter a positive reward amount.");
       return;
     }
-
     if (!durationDays || Number(durationDays) <= 0) {
       setLocalError("Enter a positive duration in days.");
       return;
@@ -307,7 +416,7 @@ export default function StakingPage() {
 
     setCurrentAction("fund");
 
-    writeContract({
+    writeMain({
       address: STAKING_ADDRESS,
       abi: stakingABI.abi,
       functionName: "fundRewards",
@@ -319,7 +428,7 @@ export default function StakingPage() {
   let periodEndString = "-";
   let rewardRateDisplay = "0";
 
-  if (poolInfo) {
+  if (poolInfo && poolExists) {
     try {
       const totalStakedRaw = poolInfo[5];
       const rewardRateRaw = poolInfo[1];
@@ -345,11 +454,17 @@ export default function StakingPage() {
 
   const stakedDisplay = formatUnits(stakedBalance, DEFAULT_DECIMALS);
 
+  const handleMainButtonClick = () => {
+    if (isStakeApproved) handleStake();
+    else handleApproveStake();
+  };
+
   const mainButtonLabel = () => {
-    if (loading && currentAction === "approve") return "Approving...";
-    if (loading && currentAction === "stake") return "Staking...";
-    if (!isApproved) return "Approve";
-    return "Stake";
+    if (currentAction === "approve-stake" && approvingStake)
+      return "Approving...";
+    if (currentAction === "stake" && mainLoading) return "Staking...";
+    if (isStakeApproved) return "Stake";
+    return "Approve";
   };
 
   return (
@@ -357,8 +472,8 @@ export default function StakingPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Staking</h1>
         <p className="text-sm text-slate-400">
-          Stake any whitelisted TokenX asset to earn rewards from your
-          MultiTokenStaking contract.
+          Stake any TokenX asset to earn rewards. Pools are created and funded
+          by the token creator wallet, then anyone can stake.
         </p>
       </div>
 
@@ -398,7 +513,7 @@ export default function StakingPage() {
         )}
       </div>
 
-      {isValidToken && poolInfo && (
+      {isValidToken && poolExists && (
         <div className="bg-[#0A1020] border border-slate-800 rounded-xl p-4 space-y-2">
           <h2 className="text-sm font-semibold text-slate-100 mb-1">
             Pool stats
@@ -420,7 +535,29 @@ export default function StakingPage() {
         </div>
       )}
 
-      {isConnectedSafe && isValidToken && (
+      {isValidToken && !poolExists && (
+        <div className="bg-[#0A1020] border border-yellow-600/50 rounded-xl p-4 space-y-2">
+          <h2 className="text-sm font-semibold text-yellow-300">
+            No pool yet for this token
+          </h2>
+          <p className="text-xs text-yellow-100">
+            This token does not have a staking pool yet. The token creator (or
+            the wallet that deployed the TokenX staking contract) must create
+            and fund a pool once:
+          </p>
+          <ul className="text-[0.7rem] text-yellow-100 list-disc list-inside space-y-1">
+            <li>Connect with the creator/deployer wallet.</li>
+            <li>Paste this token address.</li>
+            <li>Use the “Admin – Fund rewards” section below.</li>
+            <li>Approve and Fund rewards to create the pool.</li>
+          </ul>
+          <p className="text-[0.7rem] text-yellow-100">
+            After that, anyone can Approve &amp; Stake this token.
+          </p>
+        </div>
+      )}
+
+      {isConnectedSafe && isValidToken && poolExists && (
         <div className="bg-[#0A1020] border border-slate-800 rounded-xl p-4 space-y-2">
           <h2 className="text-sm font-semibold text-slate-100 mb-1">
             Your position
@@ -436,10 +573,10 @@ export default function StakingPage() {
           <button
             type="button"
             onClick={handleClaim}
-            disabled={loading || !earned || earned === 0n}
+            disabled={mainLoading || !earned || earned === 0n}
             className="mt-3 inline-flex items-center rounded-lg bg-yellow-600 px-4 py-2 text-xs font-semibold text-black hover:bg-yellow-500 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {loading && currentAction === "claim"
+            {mainLoading && currentAction === "claim"
               ? "Claiming..."
               : "Claim rewards"}
           </button>
@@ -460,8 +597,8 @@ export default function StakingPage() {
           <div className="flex gap-3 mt-4">
             <button
               type="button"
-              onClick={isApproved ? handleStake : handleApprove}
-              disabled={loading}
+              onClick={handleMainButtonClick}
+              disabled={!isValidToken || approvingStake || mainLoading}
               className="flex-1 inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {mainButtonLabel()}
@@ -470,10 +607,10 @@ export default function StakingPage() {
             <button
               type="button"
               onClick={handleWithdraw}
-              disabled={loading}
+              disabled={mainLoading || approvingStake}
               className="flex-1 inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold hover:bg-red-500 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading && currentAction === "withdraw"
+              {mainLoading && currentAction === "withdraw"
                 ? "Processing..."
                 : "Withdraw"}
             </button>
@@ -484,8 +621,14 @@ export default function StakingPage() {
       {isConnectedSafe && isValidToken && isOwner && (
         <div className="bg-[#0A1020] border border-emerald-700 rounded-xl p-4 space-y-3">
           <h2 className="text-sm font-semibold text-emerald-400">
-            Admin – Fund rewards
+            Admin – Create and fund pool
           </h2>
+
+          <p className="text-[0.7rem] text-slate-300">
+            Use this section from the token creator/deployer wallet to create
+            and fund a staking pool. Once funded, everyone can stake this token
+            above.
+          </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
@@ -518,32 +661,11 @@ export default function StakingPage() {
           <div className="flex flex-row gap-1">
             <button
               type="button"
-              onClick={() => {
-                if (!isOwner || !isValidToken || !rewardAmount) return;
-                const parsed = parseUnits(rewardAmount, DEFAULT_DECIMALS);
-                setCurrentAction("admin-approve");
-                writeContract({
-                  address: selectedToken,
-                  abi: [
-                    {
-                      name: "approve",
-                      type: "function",
-                      stateMutability: "nonpayable",
-                      inputs: [
-                        { name: "spender", type: "address" },
-                        { name: "amount", type: "uint256" },
-                      ],
-                      outputs: [],
-                    },
-                  ],
-                  functionName: "approve",
-                  args: [STAKING_ADDRESS, parsed],
-                });
-              }}
-              disabled={loading || !rewardAmount || Number(rewardAmount) <= 0}
+              onClick={handleApprovePool}
+              disabled={approvingPool || mainLoading || !rewardAmount}
               className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading && currentAction === "admin-approve"
+              {approvingPool && currentAction === "approve-pool"
                 ? "Approving..."
                 : "Approve contract"}
             </button>
@@ -552,22 +674,25 @@ export default function StakingPage() {
               type="button"
               onClick={handleFund}
               disabled={
-                loading ||
+                mainLoading ||
+                approvingPool ||
                 !rewardAmount ||
                 Number(rewardAmount) <= 0 ||
                 !durationDays ||
-                Number(durationDays) <= 0
+                Number(durationDays) <= 0 ||
+                !isPoolApproved
               }
               className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading && currentAction === "fund"
+              {mainLoading && currentAction === "fund"
                 ? "Funding..."
                 : "Fund rewards"}
             </button>
           </div>
 
           <p className="text-[0.7rem] text-slate-400">
-            Step 1: Approve the amount. Step 2: Fund rewards.
+            Step 1: Approve the reward amount from the token creator wallet.{" "}
+            Step 2: Fund rewards to create/update the pool.
           </p>
         </div>
       )}

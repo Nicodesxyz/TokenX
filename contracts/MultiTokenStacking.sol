@@ -26,93 +26,28 @@ contract MultiTokenStaking is ReentrancyGuard, Ownable {
 
     mapping(address => Pool) public pools;
     mapping(address => mapping(address => UserData)) public userData;
-    mapping(address => bool) public allowedStakingTokens;
 
-    event PoolFunded(address indexed stakingToken, uint256 rewardAmount, uint256 duration, uint256 newRewardRate, uint256 periodFinish);
+    event PoolFunded(
+        address indexed stakingToken,
+        uint256 rewardAmount,
+        uint256 duration,
+        uint256 newRewardRate,
+        uint256 periodFinish
+    );
     event Staked(address indexed stakingToken, address indexed user, uint256 amount);
     event Withdrawn(address indexed stakingToken, address indexed user, uint256 amount);
     event RewardPaid(address indexed stakingToken, address indexed user, uint256 reward);
-    event StakingTokenAllowed(address indexed token, bool allowed);
     event TokensRescued(address indexed token, uint256 amount);
 
-    function setAllowedStakingToken(address token, bool allowed) external onlyOwner {
-        allowedStakingTokens[token] = allowed;
-        emit StakingTokenAllowed(token, allowed);
-    }
-
-    function fundRewards(address stakingToken, uint256 rewardAmount, uint256 duration) external nonReentrant onlyOwner {
-        require(allowedStakingTokens[stakingToken], "Token not allowed");
-        require(rewardAmount > 0, "rewardAmount = 0");
-        require(duration > 0, "duration = 0");
-
-        Pool storage pool = pools[stakingToken];
-        IERC20 token = IERC20(stakingToken);
-
-        require(token.transferFrom(msg.sender, address(this), rewardAmount), "Reward transfer failed");
-
-        if (!pool.exists) {
-            pool.exists = true;
-            pool.stakingToken = token;
-        }
-
-        _updateReward(stakingToken, address(0));
-
-        uint256 currentTime = block.timestamp;
-        if (currentTime >= pool.periodFinish) {
-            pool.rewardRate = rewardAmount / duration;
-        } else {
-            uint256 remaining = pool.periodFinish - currentTime;
-            uint256 leftover = remaining * pool.rewardRate;
-            uint256 newReward = rewardAmount + leftover;
-            pool.rewardRate = newReward / duration;
-        }
-
-        pool.lastUpdateTime = currentTime;
-        pool.periodFinish = currentTime + duration;
-
-        emit PoolFunded(stakingToken, rewardAmount, duration, pool.rewardRate, pool.periodFinish);
-    }
-
-    function stake(address stakingToken, uint256 amount) external nonReentrant {
-        require(amount > 0, "stake = 0");
-        require(allowedStakingTokens[stakingToken], "Token not allowed");
-
-        Pool storage pool = pools[stakingToken];
-        require(pool.exists, "Pool not funded");
-
-        _updateReward(stakingToken, msg.sender);
-
-        pool.totalStaked += amount;
-        userData[stakingToken][msg.sender].balance += amount;
-
-        require(pool.stakingToken.transferFrom(msg.sender, address(this), amount), "Stake transfer failed");
-
-        emit Staked(stakingToken, msg.sender, amount);
-    }
-
-    function withdraw(address stakingToken, uint256 amount) external nonReentrant {
-        _withdraw(stakingToken, msg.sender, amount);
-    }
-
-    function getReward(address stakingToken) external nonReentrant {
-        _getReward(stakingToken, msg.sender);
-    }
-
-    function exit(address stakingToken) external nonReentrant {
-        uint256 balance = userData[stakingToken][msg.sender].balance;
-        if (balance > 0) {
-            _withdraw(stakingToken, msg.sender, balance);
-        }
-        _getReward(stakingToken, msg.sender);
-    }
-
     function lastTimeRewardApplicable(address stakingToken) public view returns (uint256) {
-        Pool storage pool = pools[stakingToken];
-        return block.timestamp < pool.periodFinish ? block.timestamp : pool.periodFinish;
+        uint256 periodFinish = pools[stakingToken].periodFinish;
+        if (periodFinish == 0) return block.timestamp;
+        return block.timestamp < periodFinish ? block.timestamp : periodFinish;
     }
 
     function rewardPerToken(address stakingToken) public view returns (uint256) {
         Pool storage pool = pools[stakingToken];
+        if (!pool.exists) return 0;
         if (pool.totalStaked == 0) return pool.rewardPerTokenStored;
 
         uint256 timeDelta = lastTimeRewardApplicable(stakingToken) - pool.lastUpdateTime;
@@ -152,15 +87,51 @@ contract MultiTokenStaking is ReentrancyGuard, Ownable {
         );
     }
 
-    function rescueTokens(address token, uint256 amount) external onlyOwner {
-        require(!pools[token].exists, "Cannot rescue staking token");
-        IERC20(token).transfer(msg.sender, amount);
-        emit TokensRescued(token, amount);
+    function fundRewards(address stakingToken, uint256 rewardAmount, uint256 duration)
+        external
+        nonReentrant
+        onlyOwner
+    {
+        require(rewardAmount > 0, "rewardAmount = 0");
+        require(duration > 0, "duration = 0");
+
+        Pool storage pool = pools[stakingToken];
+        IERC20 token = IERC20(stakingToken);
+
+        require(token.transferFrom(msg.sender, address(this), rewardAmount), "Reward transfer failed");
+
+        uint256 currentTime = block.timestamp;
+
+        if (!pool.exists) {
+            pool.exists = true;
+            pool.stakingToken = token;
+            pool.lastUpdateTime = currentTime;
+        } else {
+            uint256 lastApplicable = lastTimeRewardApplicable(stakingToken);
+            if (pool.totalStaked > 0) {
+                uint256 timeDelta = lastApplicable - pool.lastUpdateTime;
+                pool.rewardPerTokenStored =
+                    pool.rewardPerTokenStored +
+                    ((timeDelta * pool.rewardRate * 1e18) / pool.totalStaked);
+            }
+            pool.lastUpdateTime = lastApplicable;
+        }
+
+        if (currentTime >= pool.periodFinish) {
+            pool.rewardRate = rewardAmount / duration;
+        } else {
+            uint256 remaining = pool.periodFinish - currentTime;
+            uint256 leftover = remaining * pool.rewardRate;
+            pool.rewardRate = (rewardAmount + leftover) / duration;
+        }
+
+        pool.periodFinish = currentTime + duration;
+
+        emit PoolFunded(stakingToken, rewardAmount, duration, pool.rewardRate, pool.periodFinish);
     }
 
     function _updateReward(address stakingToken, address account) internal {
         Pool storage pool = pools[stakingToken];
-
         pool.rewardPerTokenStored = rewardPerToken(stakingToken);
         pool.lastUpdateTime = lastTimeRewardApplicable(stakingToken);
 
@@ -169,6 +140,22 @@ contract MultiTokenStaking is ReentrancyGuard, Ownable {
             user.rewards = earned(stakingToken, account);
             user.userRewardPerTokenPaid = pool.rewardPerTokenStored;
         }
+    }
+
+    function stake(address stakingToken, uint256 amount) external nonReentrant {
+        require(amount > 0, "stake = 0");
+
+        Pool storage pool = pools[stakingToken];
+        require(pool.exists, "Pool not funded");
+
+        _updateReward(stakingToken, msg.sender);
+
+        pool.totalStaked += amount;
+        userData[stakingToken][msg.sender].balance += amount;
+
+        require(pool.stakingToken.transferFrom(msg.sender, address(this), amount), "Stake transfer failed");
+
+        emit Staked(stakingToken, msg.sender, amount);
     }
 
     function _withdraw(address stakingToken, address userAddr, uint256 amount) internal {
@@ -180,7 +167,7 @@ contract MultiTokenStaking is ReentrancyGuard, Ownable {
         _updateReward(stakingToken, userAddr);
 
         UserData storage user = userData[stakingToken][userAddr];
-        require(user.balance >= amount, "insufficient staked");
+        require(user.balance >= amount, "withdraw > balance");
 
         user.balance -= amount;
         pool.totalStaked -= amount;
@@ -188,6 +175,10 @@ contract MultiTokenStaking is ReentrancyGuard, Ownable {
         require(pool.stakingToken.transfer(userAddr, amount), "Withdraw transfer failed");
 
         emit Withdrawn(stakingToken, userAddr, amount);
+    }
+
+    function withdraw(address stakingToken, uint256 amount) external nonReentrant {
+        _withdraw(stakingToken, msg.sender, amount);
     }
 
     function _getReward(address stakingToken, address userAddr) internal {
@@ -204,5 +195,22 @@ contract MultiTokenStaking is ReentrancyGuard, Ownable {
             require(pool.stakingToken.transfer(userAddr, reward), "Reward transfer failed");
             emit RewardPaid(stakingToken, userAddr, reward);
         }
+    }
+
+    function getReward(address stakingToken) external nonReentrant {
+        _getReward(stakingToken, msg.sender);
+    }
+
+    function exit(address stakingToken) external nonReentrant {
+        uint256 balance = userData[stakingToken][msg.sender].balance;
+        if (balance > 0) {
+            _withdraw(stakingToken, msg.sender, balance);
+        }
+        _getReward(stakingToken, msg.sender);
+    }
+
+    function rescueTokens(address token, uint256 amount) external onlyOwner {
+        require(IERC20(token).transfer(msg.sender, amount), "Rescue failed");
+        emit TokensRescued(token, amount);
     }
 }
