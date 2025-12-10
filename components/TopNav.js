@@ -10,8 +10,8 @@ const TopNav = () => {
           <Image
             src="/logo.webp"
             alt="TokenX logo"
-            width={48}
-            height={48}
+            width={60}
+            height={60}
             priority
           />
 

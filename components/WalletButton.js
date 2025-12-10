@@ -54,19 +54,24 @@ export default function ConnectButton() {
 
   if (!address || status !== "connected") {
     return (
-      <button
-        className="connect-btn"
-        onClick={handleConnect}
-        disabled={connect.status === "pending"}
-      >
-        {connect.status === "pending" ? "Connecting..." : "Connect Wallet"}
-      </button>
+      <div class="button-wrap">
+        <button
+          className="button-gradient"
+          onClick={handleConnect}
+          disabled={connect.status === "pending"}
+        >
+          <span>
+            {connect.status === "pending" ? "Connecting..." : "Connect Wallet"}
+          </span>
+        </button>
+        <div class="button-shadow"></div>
+      </div>
     );
   }
 
   if (isWrongChain) {
     return (
-      <div className="connect-btn connected wrong-network">
+      <div className="connected-btn connected wrong-network">
         <span>{shortAddress(address)}</span>
         <small style={{ color: "#ff4d4d", fontSize: "0.75rem" }}>
           {chainName}
@@ -80,7 +85,7 @@ export default function ConnectButton() {
   }
 
   return (
-    <div className="connect-btn connected">
+    <div className="connected-btn connected">
       <span>
         {shortAddress(address)}
         <small style={{ opacity: 0.6, marginLeft: 6 }}>{chainName}</small>

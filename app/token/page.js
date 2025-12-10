@@ -7,6 +7,7 @@ import {
   useConnection,
 } from "wagmi";
 import factoryABI from "../abi/TokenFactory.json";
+import GradientButton from "@/components/GradientButton";
 
 const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS;
 const SUPPORTED_CHAIN_ID = 11155111; // Sepolia
@@ -314,20 +315,12 @@ export default function TokenCreatorPage() {
           </div>
 
           <div className="mt-6 flex items-center justify-between gap-3">
-            <button
-              type="submit"
-              disabled={loading || isWrongChain}
-              className={[
-                "inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition",
-                "bg-blue-600 hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60",
-                "shadow-[0_0_20px_rgba(37,99,235,0.45)]",
-              ].join(" ")}
-            >
+            <GradientButton type="submit" disabled={loading || isWrongChain}>
               {loading ? "Deploying..." : "Deploy Token"}
-            </button>
+            </GradientButton>
 
             <div className="text-[0.70rem] text-slate-500 text-right">
-              Deployed via ForgeX Token Factory on Sepolia.
+              Deployed via TokenX Token Factory on Sepolia.
             </div>
           </div>
         </form>
