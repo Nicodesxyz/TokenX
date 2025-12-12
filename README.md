@@ -45,13 +45,14 @@ Factory
 npx hardhat run scripts/deployFactory.js --network sepolia
 ```
 
-<br/>
 Stacking
+
 ```bash
 npx hardhat run scripts/deployStaking.js --network sepolia
 ```
-<br/>
+
 Locker
+
 ```bash
 npx hardhat run scripts/deployLocker.js --network sepolia
 ```
