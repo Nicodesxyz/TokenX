@@ -28,4 +28,32 @@ Step 3: Fill the .env.example (rename it .env)<br/>
 
 Your local version using public contract should be up and running 🔥
 
+## Deploy your own Contract Address
+
+Step 1: Compile
+
+```bash
+npx hardhat compile
+
+```
+
+Step 2: Deploy
+
+Factory
+
+```bash
+npx hardhat run scripts/deployFactory.js --network sepolia
+```
+
+<br/>
+Stacking
+```bash
+npx hardhat run scripts/deployStaking.js --network sepolia
+```
+<br/>
+Locker
+```bash
+npx hardhat run scripts/deployLocker.js --network sepolia
+```
+
 ## Built by Nicodes.xyz
