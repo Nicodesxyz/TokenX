@@ -1,9 +1,6 @@
 <div style="display:flex; gap:10px;">
-<p >
-  <img src="https://raw.githubusercontent.com/Nicodesxyz/TokenX/main/public/logo.webp" width="120" alt="TokenX Logo">
-</p>
 
-<h1>🚀 TOKENX</h1>
+<h1><img src="https://raw.githubusercontent.com/Nicodesxyz/TokenX/main/public/logo.webp" width="120" alt="TokenX Logo"> TOKENX</h1>
 </div>
 <p align="left">
   <strong>No-code ERC-20 Creation • Staking • Locking</strong><br>
