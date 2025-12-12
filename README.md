@@ -1,5 +1,7 @@
-<h1><img src="https://raw.githubusercontent.com/Nicodesxyz/TokenX/main/public/logo.webp" width="40" alt="TokenX Logo"> TOKENX</h1>
+<div style="display:flex; gap:10px; align-items:center;">
 
+<h1><img src="https://raw.githubusercontent.com/Nicodesxyz/TokenX/main/public/logo.webp" width="40" alt="TokenX Logo"> TOKENX</h1>
+</div>
 <p align="left">
   <strong>ERC-20 Creation • Staking • Locking</strong><br>
   Build, launch and scale Web3 tokens instantly.
