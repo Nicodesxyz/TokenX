@@ -1,64 +1,13 @@
+<!-- Banner -->
 <p align="center">
-  <svg width="100%" height="200" viewBox="0 0 1100 200" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="tokenxGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#4DB8FF" />
-        <stop offset="100%" stop-color="#0070FF" />
-      </linearGradient>
+  <img src="https://dummyimage.com/1100x260/0b0f1a/4ab0ff&text=TOKENX:+Build.+Launch.+Scale." width="100%"/>
+</p>
 
-      <filter id="tokenxNeon">
-        <feGaussianBlur stdDeviation="4" result="blur" />
-        <feMerge>
-          <feMergeNode in="blur" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
-    </defs>
+<h1 align="center">⚡ TokenX Web3 Launchpad</h1>
 
-    <!-- Dark background -->
-    <rect x="0" y="0" width="1100" height="200" fill="#050816" />
-
-    <!-- Neon border -->
-    <rect
-      x="15"
-      y="15"
-      width="1070"
-      height="170"
-      rx="24"
-      fill="none"
-      stroke="url(#tokenxGrad)"
-      stroke-width="3"
-      filter="url(#tokenxNeon)"
-    />
-
-    <!-- Main title -->
-    <text
-      x="50%"
-      y="52%"
-      text-anchor="middle"
-      font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-      font-size="34"
-      font-weight="700"
-      fill="url(#tokenxGrad)"
-      filter="url(#tokenxNeon)"
-    >
-      TOKENX • WEB3 LAUNCHPAD
-    </text>
-
-    <!-- Subtitle -->
-    <text
-      x="50%"
-      y="73%"
-      text-anchor="middle"
-      font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-      font-size="18"
-      fill="#B9D9FF"
-      opacity="0.9"
-    >
-      No-code Token Creation · Staking · Locking
-    </text>
-
-  </svg>
+<p align="left">
+  <b>ERC-20 generator + staking + token locking + dashboard</b><br/>
+  Create production-ready contracts deployed instantly to Sepolia/Mainnet.
 </p>
 
 ## Stack
