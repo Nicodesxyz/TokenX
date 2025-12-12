@@ -1,41 +1,64 @@
 <p align="center">
-<svg width="100%" height="200" viewBox="0 0 1100 200" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#4db8ff"/>
-      <stop offset="100%" stop-color="#0070ff"/>
-    </linearGradient>
+  <svg width="100%" height="200" viewBox="0 0 1100 200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="tokenxGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#4DB8FF" />
+        <stop offset="100%" stop-color="#0070FF" />
+      </linearGradient>
 
-    <filter id="neon">
-      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-      <feMerge>
-        <feMergeNode in="coloredBlur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
+      <filter id="tokenxNeon">
+        <feGaussianBlur stdDeviation="4" result="blur" />
+        <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+    </defs>
 
-  </defs>
+    <!-- Dark background -->
+    <rect x="0" y="0" width="1100" height="200" fill="#050816" />
 
-  <!-- Border -->
+    <!-- Neon border -->
+    <rect
+      x="15"
+      y="15"
+      width="1070"
+      height="170"
+      rx="24"
+      fill="none"
+      stroke="url(#tokenxGrad)"
+      stroke-width="3"
+      filter="url(#tokenxNeon)"
+    />
 
-<rect x="10" y="10" width="1080" height="180" rx="20"
-        fill="none" stroke="url(#grad)" stroke-width="4"
-        filter="url(#neon)"/>
+    <!-- Main title -->
+    <text
+      x="50%"
+      y="52%"
+      text-anchor="middle"
+      font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+      font-size="34"
+      font-weight="700"
+      fill="url(#tokenxGrad)"
+      filter="url(#tokenxNeon)"
+    >
+      TOKENX • WEB3 LAUNCHPAD
+    </text>
 
-  <!-- Text -->
+    <!-- Subtitle -->
+    <text
+      x="50%"
+      y="73%"
+      text-anchor="middle"
+      font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+      font-size="18"
+      fill="#B9D9FF"
+      opacity="0.9"
+    >
+      No-code Token Creation · Staking · Locking
+    </text>
 
-<text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle"
-        font-size="42" font-weight="700"
-        fill="url(#grad)" filter="url(#neon)">
-TOKENX — WEB3 LAUNCHPAD
-</text>
-
-<text x="50%" y="75%" dominant-baseline="middle" text-anchor="middle"
-        font-size="20" fill="#b9d9ff" opacity="0.85">
-No-code Token Creation · Staking · Locking
-</text>
-</svg>
-
+  </svg>
 </p>
 
 ## Stack
