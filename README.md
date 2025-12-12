@@ -3,7 +3,7 @@
   <img src="https://dummyimage.com/1100x260/0b0f1a/4ab0ff&text=TOKENX:+Build.+Launch.+Scale." width="100%"/>
 </p>
 
-<h1 align="center">⚡ TokenX Web3 Launchpad</h1>
+<h1 align="left">⚡ TokenX Web3 Launchpad</h1>
 
 <p align="left">
   <b>ERC-20 generator + staking + token locking + dashboard</b><br/>
