@@ -27,3 +27,5 @@ Step 2: Run npm install<br/>
 Step 3: Fill the .env.example (rename it .env)<br/>
 
 Your local version using public contract should be up and running 🔥
+
+## Built by Nicodes.xyz
