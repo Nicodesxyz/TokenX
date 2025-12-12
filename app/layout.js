@@ -1,30 +1,29 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 import LeftNav from "@/components/LeftNav";
 import TopNav from "@/components/TopNav";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const interSans = Inter({
+  variable: "--font-inter-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
 });
 
 export const metadata = {
   title: "TokenX",
-  description:
-    "The one app to build, manage, scale & bring your token the features it requires. No code, no fee, easy to use",
+  description: "Deploy & Manage your token all in one place.",
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} main-wrapper`}
+        className={`${interSans.variable} ${spaceGrotesk.variable} main-wrapper`}
       >
         <Providers>
           <LeftNav />

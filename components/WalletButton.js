@@ -54,7 +54,7 @@ export default function ConnectButton() {
 
   if (!address || status !== "connected") {
     return (
-      <div class="button-wrap">
+      <div className="button-wrap">
         <button
           className="button-gradient"
           onClick={handleConnect}
@@ -64,7 +64,7 @@ export default function ConnectButton() {
             {connect.status === "pending" ? "Connecting..." : "Connect Wallet"}
           </span>
         </button>
-        <div class="button-shadow"></div>
+        <div className="button-shadow"></div>
       </div>
     );
   }
