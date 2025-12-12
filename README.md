@@ -1,29 +1,26 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+<!-- Banner -->
+<p align="center">
+  <img src="https://dummyimage.com/1100x260/0b0f1a/4ab0ff&text=TOKENX:+Build.+Launch.+Scale." width="100%"/>
+</p>
+
+<h1 align="center">⚡ TokenX Web3 Launchpad</h1>
+
+<p align="center">
+  <img src="YOUR_LOGO_URL_HERE" width="80" />
+</p>
+
+<p align="center">
+  <b>No-code ERC-20 generator + staking + token locking + dashboard</b><br/>
+  Create production-ready contracts deployed instantly to Sepolia/Mainnet.
+</p>
 
 ## Public Sepolia contract deployed
 
-Factory 0x262977b065471D3CC0425519A686435eb7fE2072
-Stacking 0x2C9C3836C159afBe95effAf06348A1ad7fFD9947
+Factory: 0x262977b065471D3CC0425519A686435eb7fE2072
+Staking: 0xD98fF66c2199f5BE2abbe9FF9Db747Ef01c2B5c9
+Locker: 0xA945adbd9d3fC36187237Ba11A678c30824Fb5b7
 
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Add you deployer and rpc inside .env.example
 
 ## Stack
 
