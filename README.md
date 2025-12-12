@@ -1,9 +1,7 @@
-<div style="display:flex; gap:10px;">
+<h1><img src="https://raw.githubusercontent.com/Nicodesxyz/TokenX/main/public/logo.webp" width="40" alt="TokenX Logo"> TOKENX</h1>
 
-<h1><img src="https://raw.githubusercontent.com/Nicodesxyz/TokenX/main/public/logo.webp" width="20" alt="TokenX Logo"> TOKENX</h1>
-</div>
 <p align="left">
-  <strong>No-code ERC-20 Creation • Staking • Locking</strong><br>
+  <strong>ERC-20 Creation • Staking • Locking</strong><br>
   Build, launch and scale Web3 tokens instantly.
 </p>
 
@@ -17,7 +15,7 @@ Factory: 0x262977b065471D3CC0425519A686435eb7fE2072<br/>
 Staking: 0xD98fF66c2199f5BE2abbe9FF9Db747Ef01c2B5c9<br/>
 Locker: 0xA945adbd9d3fC36187237Ba11A678c30824Fb5b7<br/>
 
-## How toget started
+## How to get started
 
 Step 1: Clone the repository<br/>
 Step 2: Run npm install<br/>
