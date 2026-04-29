@@ -7,7 +7,7 @@ body {
   height: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow: hidden;
+  overflow-x: hidden;
   font-family: var(--font-inter-sans);
   line-height: 1.6;
 }
@@ -46,11 +46,7 @@ h4 {
   font-family: var(--font-space-grotesk);
 }
 
-@media (max-width: 768px) {
-  .app-main {
-    padding: 0;
-  }
-}
+/* mobile app-main handled in the consolidated block below */
 
 .app-main-inner {
   width: 100%;
@@ -70,6 +66,7 @@ h4 {
   border-right: 1px solid #1f2536;
   color: #ffffff;
   z-index: 50;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .left-nav__inner {
@@ -474,13 +471,28 @@ h4 {
 }
 
 @media (max-width: 768px) {
+  /* Nav drawer slides in from the left, starts below the topnav */
   .left-nav {
-    width: 100%;
-    inset: 0;
+    width: 280px;
+    top: 58px;
+    transform: translateX(-100%);
+  }
+
+  .left-nav.nav-open {
+    transform: translateX(0);
   }
 
   .left-nav__inner {
-    padding: 20px 16px;
+    margin-top: 0;
+    padding: 16px;
+  }
+
+  /* Page content clears the mobile topnav, no left offset */
+  .app-main {
+    padding-top: 74px;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-bottom: 2rem;
   }
 
   .top-nav {
@@ -490,4 +502,67 @@ h4 {
   .top-nav__brand-name {
     font-size: 0.95rem;
   }
+}
+
+/* ========== HAMBURGER BUTTON ========== */
+
+.hamburger-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hamburger-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.hamburger-btn__line {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: #ffffff;
+  border-radius: 2px;
+}
+
+/* ========== MOBILE NAV CLOSE BUTTON ========== */
+
+.left-nav__close-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.left-nav__close-btn {
+  background: transparent;
+  border: 1px solid #2a3147;
+  color: #a9b4ce;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-family: var(--font-inter-sans);
+  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.left-nav__close-btn:hover {
+  background: #151a28;
+  color: #ffffff;
+}
+
+/* ========== WALLET BUTTON INSIDE MOBILE NAV ========== */
+
+.left-nav__wallet {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #1f2536;
 }
