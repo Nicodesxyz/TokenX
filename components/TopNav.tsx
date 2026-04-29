@@ -2,7 +2,7 @@ import Image from "next/image";
 import React from "react";
 import WalletButton from "./WalletButton";
 
-const TopNav = () => {
+const TopNav: React.FC = () => {
   return (
     <header className="top-nav">
       <div className="top-nav__inner">

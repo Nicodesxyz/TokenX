@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 
-const LeftNav = () => {
+const LeftNav: React.FC = () => {
   return (
     <nav className="left-nav">
       <div className="left-nav__inner">

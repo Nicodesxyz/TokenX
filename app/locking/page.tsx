@@ -9,10 +9,35 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { formatUnits, parseUnits } from "viem";
+import type { Address } from "viem";
 import lockerABI from "../abi/MultiTokenLocker.json";
 
-const LOCKER_ADDRESS = process.env.NEXT_PUBLIC_LOCKER_ADDRESS;
+const LOCKER_ADDRESS = process.env.NEXT_PUBLIC_LOCKER_ADDRESS as Address | undefined;
 const DEFAULT_DECIMALS = 18;
+
+interface ParsedLock {
+  token: string;
+  memo: string;
+  amountDisplay: string;
+  start: string;
+  unlock: string;
+  status: string;
+  ready: boolean;
+  lockId: bigint;
+}
+
+const approveAbi = [
+  {
+    name: "approve",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [],
+  },
+] as const;
 
 export default function LockingPage() {
   const { address, isConnected } = useAccount();
@@ -43,8 +68,8 @@ export default function LockingPage() {
     query: { enabled: !!LOCKER_ADDRESS && !!address },
   });
 
-  const lockIds = useMemo(
-    () => (Array.isArray(lockIdsData) ? lockIdsData : []),
+  const lockIds = useMemo<bigint[]>(
+    () => (Array.isArray(lockIdsData) ? (lockIdsData as bigint[]) : []),
     [lockIdsData]
   );
 
@@ -105,7 +130,9 @@ export default function LockingPage() {
   const locking = isLockPending || isLockConfirming;
 
   const chainError = approveError || lockError;
-  const chainErrorMsg = chainError?.shortMessage || chainError?.message;
+  const chainErrorMsg =
+    (chainError as { shortMessage?: string } | null)?.shortMessage ||
+    chainError?.message;
 
   const handleApprove = () => {
     setLocalError("");
@@ -127,7 +154,7 @@ export default function LockingPage() {
       return;
     }
 
-    let parsedAmount;
+    let parsedAmount: bigint;
     try {
       parsedAmount = parseUnits(amount, DEFAULT_DECIMALS);
     } catch {
@@ -135,21 +162,8 @@ export default function LockingPage() {
       return;
     }
 
-    const approveAbi = [
-      {
-        name: "approve",
-        type: "function",
-        stateMutability: "nonpayable",
-        inputs: [
-          { name: "spender", type: "address" },
-          { name: "amount", type: "uint256" },
-        ],
-        outputs: [],
-      },
-    ];
-
     writeApprove({
-      address: tokenAddress,
+      address: tokenAddress as Address,
       abi: approveAbi,
       functionName: "approve",
       args: [LOCKER_ADDRESS, parsedAmount],
@@ -194,7 +208,7 @@ export default function LockingPage() {
       return;
     }
 
-    let parsedAmount;
+    let parsedAmount: bigint;
     try {
       parsedAmount = parseUnits(amount, DEFAULT_DECIMALS);
     } catch {
@@ -206,7 +220,7 @@ export default function LockingPage() {
       address: LOCKER_ADDRESS,
       abi: lockerABI.abi,
       functionName: "lockTokens",
-      args: [tokenAddress, parsedAmount, BigInt(unlockTimestamp), memo || ""],
+      args: [tokenAddress as Address, parsedAmount, BigInt(unlockTimestamp), memo || ""],
     });
   };
 
@@ -215,26 +229,29 @@ export default function LockingPage() {
     else handleApprove();
   };
 
-  const mainButtonLabel = () => {
+  const mainButtonLabel = (): string => {
     if (approving) return "Approving...";
     if (locking) return "Locking...";
     if (isApproved) return "Create lock";
     return "Approve";
   };
 
-  const parsedLocks = useMemo(() => {
+  const parsedLocks = useMemo<ParsedLock[]>(() => {
     if (!locksData || locksData.length === 0) return [];
     return locksData
-      .map((entry, idx) => {
-        const result = entry?.result ?? entry;
+      .map((entry, idx): ParsedLock | null => {
+        const result = (entry as { result?: unknown } | unknown)
+          ? (entry as { result?: unknown }).result ?? entry
+          : null;
         if (!result) return null;
 
-        const token = result[0];
-        const amountRaw = result[2];
-        const startRaw = result[3];
-        const unlockRaw = result[4];
-        const claimed = result[5];
-        const memoStr = result[6];
+        const r = result as readonly unknown[];
+        const token = r[0] as string;
+        const amountRaw = r[2];
+        const startRaw = r[3];
+        const unlockRaw = r[4];
+        const claimed = r[5] as boolean;
+        const memoStr = r[6] as string;
         const lockId = lockIds[idx];
 
         const amountDisplay =
@@ -275,10 +292,10 @@ export default function LockingPage() {
           lockId,
         };
       })
-      .filter(Boolean);
+      .filter((l): l is ParsedLock => l !== null);
   }, [locksData, lockIds]);
 
-  const handleWithdraw = (lockId) => {
+  const handleWithdraw = (lockId: bigint) => {
     if (!isConnectedSafe) {
       setLocalError("Connect your wallet first.");
       return;
@@ -399,7 +416,7 @@ export default function LockingPage() {
 
           {!locksLoading && parsedLocks.length === 0 && (
             <div className="rounded-xl border border-slate-800 bg-[#0A1020] p-4 text-sm text-slate-300">
-              You don’t have any locks yet.
+              You don&apos;t have any locks yet.
             </div>
           )}
 

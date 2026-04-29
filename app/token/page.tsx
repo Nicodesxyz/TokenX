@@ -6,11 +6,22 @@ import {
   useWaitForTransactionReceipt,
   useConnection,
 } from "wagmi";
+import type { Address } from "viem";
 import factoryABI from "../abi/TokenFactory.json";
 import GradientButton from "@/components/GradientButton";
 
-const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS;
+const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS as Address | undefined;
 const SUPPORTED_CHAIN_ID = 11155111; // Sepolia
+
+interface FormState {
+  name: string;
+  symbol: string;
+  decimals: string;
+  maxSupply: string;
+  initialSupply: string;
+  mintable: boolean;
+  burnable: boolean;
+}
 
 export default function TokenCreatorPage() {
   const { address, chainId, status: connectionStatus } = useConnection();
@@ -19,7 +30,7 @@ export default function TokenCreatorPage() {
   useEffect(() => setMounted(true), []);
   const chainIdSafe = mounted ? chainId : undefined;
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FormState>({
     name: "",
     symbol: "",
     decimals: "18",
@@ -76,7 +87,7 @@ export default function TokenCreatorPage() {
     chainIdSafe !== null &&
     chainIdSafe !== SUPPORTED_CHAIN_ID;
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
 
     setForm((prev) => ({
@@ -85,7 +96,7 @@ export default function TokenCreatorPage() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMsg("");
 
@@ -149,12 +160,14 @@ export default function TokenCreatorPage() {
       });
     } catch (err) {
       console.error("❌ Token creation error:", err);
-      setErrorMsg(err.message || "Transaction failed.");
+      setErrorMsg((err as Error).message || "Transaction failed.");
     }
   };
 
   const chainError = writeError || txError;
-  const chainErrorMsg = chainError?.shortMessage || chainError?.message;
+  const chainErrorMsg =
+    (chainError as { shortMessage?: string } | null)?.shortMessage ||
+    chainError?.message;
 
   return (
     <div className="min-h-screen w-full bg-[#050816] text-slate-100">

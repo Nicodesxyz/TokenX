@@ -3,14 +3,24 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useReadContract, useReadContracts } from "wagmi";
 import { formatUnits } from "viem";
+import type { Address } from "viem";
 
 import factoryABI from "./abi/TokenFactory.json";
 import launchpadABI from "./abi/LaunchpadToken.json";
 
-const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS;
+const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS as Address | undefined;
+
+interface TokenInfo {
+  name: string;
+  symbol: string;
+  decimals: bigint;
+  mintable: boolean;
+  burnable: boolean;
+  token: Address;
+}
 
 export default function HomePage() {
-  const [copiedAddress, setCopiedAddress] = useState(null);
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -30,7 +40,10 @@ export default function HomePage() {
     },
   });
 
-  const tokens = useMemo(() => tokensData ?? [], [tokensData]);
+  const tokens = useMemo<TokenInfo[]>(
+    () => (tokensData as TokenInfo[] | undefined) ?? [],
+    [tokensData]
+  );
 
   const ownerCalls = tokens.map((t) => ({
     address: t.token,
@@ -57,7 +70,7 @@ export default function HomePage() {
   const loading = isTokensLoading || ownersLoading || supplyLoading;
   const zeroAddress = "0x0000000000000000000000000000000000000000";
 
-  const handleCopy = (address) => {
+  const handleCopy = (address: string) => {
     if (!address) return;
     navigator.clipboard
       .writeText(address)
@@ -113,19 +126,25 @@ export default function HomePage() {
 
             const decimalsNum = Number(decimals);
 
+            const ownerEntry = ownersData?.[idx];
             const owner =
-              ownersData?.[idx]?.result ?? ownersData?.[idx] ?? null;
+              (ownerEntry as { result?: string } | undefined)?.result ??
+              (ownerEntry as string | undefined) ??
+              null;
 
             const renounced = owner && owner.toLowerCase() === zeroAddress;
 
+            const supplyEntry = supplyData?.[idx];
             const supplyRaw =
-              supplyData?.[idx]?.result ?? supplyData?.[idx] ?? null;
+              (supplyEntry as { result?: bigint } | undefined)?.result ??
+              (supplyEntry as bigint | undefined) ??
+              null;
 
             let supply = "0";
             try {
-              supply = supplyRaw ? formatUnits(supplyRaw, decimalsNum) : "0";
+              supply = supplyRaw ? formatUnits(supplyRaw as bigint, decimalsNum) : "0";
             } catch {
-              supply = supplyRaw?.toString?.() || "0";
+              supply = (supplyRaw as { toString?: () => string })?.toString?.() || "0";
             }
 
             const isCopied = copiedAddress === tokenAddress;
@@ -134,10 +153,10 @@ export default function HomePage() {
               <div
                 key={idx}
                 className="
-                  rounded-xl 
-                  border border-slate-800/80 
-                  bg-[#0A1020]/90 
-                  p-4 
+                  rounded-xl
+                  border border-slate-800/80
+                  bg-[#0A1020]/90
+                  p-4
                   shadow-[0_0_25px_rgba(15,23,42,0.5)]
                   flex flex-col gap-2
                   max-w-[350px]

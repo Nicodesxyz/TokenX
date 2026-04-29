@@ -1,6 +1,10 @@
-import React from "react";
+import React, { ButtonHTMLAttributes } from "react";
 
-const GradientButton = ({
+interface GradientButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  className?: string;
+}
+
+const GradientButton: React.FC<GradientButtonProps> = ({
   children,
   className = "",
   disabled = false,

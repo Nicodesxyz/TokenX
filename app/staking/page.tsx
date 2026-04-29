@@ -8,9 +8,10 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { formatUnits, parseUnits } from "viem";
+import type { Address } from "viem";
 import stakingABI from "../abi/MultiTokenStaking.json";
 
-const STAKING_ADDRESS = process.env.NEXT_PUBLIC_STAKING_ADDRESS;
+const STAKING_ADDRESS = process.env.NEXT_PUBLIC_STAKING_ADDRESS as Address | undefined;
 const DEFAULT_DECIMALS = 18;
 
 const approveAbi = [
@@ -24,7 +25,16 @@ const approveAbi = [
     ],
     outputs: [],
   },
-];
+] as const;
+
+type ActionType =
+  | "approve-stake"
+  | "stake"
+  | "approve-pool"
+  | "fund"
+  | "claim"
+  | "withdraw"
+  | null;
 
 export default function StakingPage() {
   const { address, isConnected } = useAccount();
@@ -37,7 +47,7 @@ export default function StakingPage() {
   const [localError, setLocalError] = useState("");
   const [isStakeApproved, setIsStakeApproved] = useState(false);
   const [isPoolApproved, setIsPoolApproved] = useState(false);
-  const [currentAction, setCurrentAction] = useState(null);
+  const [currentAction, setCurrentAction] = useState<ActionType>(null);
 
   useEffect(() => setMounted(true), []);
   const isConnectedSafe = mounted && isConnected;
@@ -72,11 +82,11 @@ export default function StakingPage() {
     address: STAKING_ADDRESS,
     abi: stakingABI.abi,
     functionName: "getPoolInfo",
-    args: isValidToken ? [selectedToken] : undefined,
-    query: { enabled: !!STAKING_ADDRESS && isValidToken },
+    args: isValidToken ? [selectedToken as Address] : undefined,
+    query: { enabled: !!STAKING_ADDRESS && !!isValidToken },
   });
 
-  const poolExists = !!(poolInfo && poolInfo[0]);
+  const poolExists = !!(poolInfo && (poolInfo as unknown[])[0]);
 
   const { data: earned, refetch: refetchEarned } = useReadContract({
     address: STAKING_ADDRESS,
@@ -84,10 +94,10 @@ export default function StakingPage() {
     functionName: "earned",
     args:
       isValidToken && address && poolExists
-        ? [selectedToken, address]
+        ? [selectedToken as Address, address]
         : undefined,
     query: {
-      enabled: !!STAKING_ADDRESS && isValidToken && !!address && poolExists,
+      enabled: !!STAKING_ADDRESS && !!isValidToken && !!address && poolExists,
     },
   });
 
@@ -97,16 +107,16 @@ export default function StakingPage() {
     functionName: "userData",
     args:
       isValidToken && address && poolExists
-        ? [selectedToken, address]
+        ? [selectedToken as Address, address]
         : undefined,
     query: {
-      enabled: !!STAKING_ADDRESS && isValidToken && !!address && poolExists,
+      enabled: !!STAKING_ADDRESS && !!isValidToken && !!address && poolExists,
     },
   });
 
-  const stakedBalance = useMemo(() => {
+  const stakedBalance = useMemo<bigint>(() => {
     if (!userData) return 0n;
-    return userData[0] ?? 0n;
+    return (userData as readonly [bigint, ...unknown[]])[0] ?? 0n;
   }, [userData]);
 
   const {
@@ -169,7 +179,9 @@ export default function StakingPage() {
   const mainLoading = isMainPending || isMainConfirming;
 
   const chainError = stakeApproveError || poolApproveError || mainError;
-  const chainErrorMsg = chainError?.shortMessage || chainError?.message;
+  const chainErrorMsg =
+    (chainError as { shortMessage?: string } | null)?.shortMessage ||
+    chainError?.message;
 
   const handleApproveStake = () => {
     setLocalError("");
@@ -191,7 +203,7 @@ export default function StakingPage() {
       return;
     }
 
-    let parsed;
+    let parsed: bigint;
     try {
       parsed = parseUnits(amount, DEFAULT_DECIMALS);
     } catch {
@@ -202,7 +214,7 @@ export default function StakingPage() {
     setCurrentAction("approve-stake");
 
     writeApproveStake({
-      address: selectedToken,
+      address: selectedToken as Address,
       abi: approveAbi,
       functionName: "approve",
       args: [STAKING_ADDRESS, parsed],
@@ -235,7 +247,7 @@ export default function StakingPage() {
       return;
     }
 
-    let parsed;
+    let parsed: bigint;
     try {
       parsed = parseUnits(amount, DEFAULT_DECIMALS);
     } catch {
@@ -249,7 +261,7 @@ export default function StakingPage() {
       address: STAKING_ADDRESS,
       abi: stakingABI.abi,
       functionName: "stake",
-      args: [selectedToken, parsed],
+      args: [selectedToken as Address, parsed],
       gas: 800000n,
     });
   };
@@ -278,7 +290,7 @@ export default function StakingPage() {
       return;
     }
 
-    let parsed;
+    let parsed: bigint;
     try {
       parsed = parseUnits(amount, DEFAULT_DECIMALS);
     } catch {
@@ -292,7 +304,7 @@ export default function StakingPage() {
       address: STAKING_ADDRESS,
       abi: stakingABI.abi,
       functionName: "withdraw",
-      args: [selectedToken, parsed],
+      args: [selectedToken as Address, parsed],
     });
   };
 
@@ -322,7 +334,7 @@ export default function StakingPage() {
       address: STAKING_ADDRESS,
       abi: stakingABI.abi,
       functionName: "getReward",
-      args: [selectedToken],
+      args: [selectedToken as Address],
     });
   };
 
@@ -350,7 +362,7 @@ export default function StakingPage() {
       return;
     }
 
-    let parsed;
+    let parsed: bigint;
     try {
       parsed = parseUnits(rewardAmount, DEFAULT_DECIMALS);
     } catch {
@@ -361,7 +373,7 @@ export default function StakingPage() {
     setCurrentAction("approve-pool");
 
     writeApprovePool({
-      address: selectedToken,
+      address: selectedToken as Address,
       abi: approveAbi,
       functionName: "approve",
       args: [STAKING_ADDRESS, parsed],
@@ -396,7 +408,7 @@ export default function StakingPage() {
       return;
     }
 
-    let parsedReward;
+    let parsedReward: bigint;
     try {
       parsedReward = parseUnits(rewardAmount, DEFAULT_DECIMALS);
     } catch {
@@ -404,7 +416,7 @@ export default function StakingPage() {
       return;
     }
 
-    let daysBigInt;
+    let daysBigInt: bigint;
     try {
       daysBigInt = BigInt(durationDays);
     } catch {
@@ -420,7 +432,7 @@ export default function StakingPage() {
       address: STAKING_ADDRESS,
       abi: stakingABI.abi,
       functionName: "fundRewards",
-      args: [selectedToken, parsedReward, durationSeconds],
+      args: [selectedToken as Address, parsedReward, durationSeconds],
     });
   };
 
@@ -430,9 +442,10 @@ export default function StakingPage() {
 
   if (poolInfo && poolExists) {
     try {
-      const totalStakedRaw = poolInfo[5];
-      const rewardRateRaw = poolInfo[1];
-      const periodFinishRaw = poolInfo[4];
+      const poolArr = poolInfo as readonly unknown[];
+      const totalStakedRaw = poolArr[5];
+      const rewardRateRaw = poolArr[1];
+      const periodFinishRaw = poolArr[4];
       if (typeof totalStakedRaw === "bigint") {
         totalStaked = formatUnits(totalStakedRaw, DEFAULT_DECIMALS);
       }
@@ -459,7 +472,7 @@ export default function StakingPage() {
     else handleApproveStake();
   };
 
-  const mainButtonLabel = () => {
+  const mainButtonLabel = (): string => {
     if (currentAction === "approve-stake" && approvingStake)
       return "Approving...";
     if (currentAction === "stake" && mainLoading) return "Staking...";
@@ -548,7 +561,7 @@ export default function StakingPage() {
           <ul className="text-[0.7rem] text-yellow-100 list-disc list-inside space-y-1">
             <li>Connect with the creator/deployer wallet.</li>
             <li>Paste this token address.</li>
-            <li>Use the “Admin – Fund rewards” section below.</li>
+            <li>Use the &quot;Admin – Fund rewards&quot; section below.</li>
             <li>Approve and Fund rewards to create the pool.</li>
           </ul>
           <p className="text-[0.7rem] text-yellow-100">

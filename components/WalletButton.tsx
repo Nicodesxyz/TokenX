@@ -20,7 +20,7 @@ export default function ConnectButton() {
   const isWrongChain =
     chainId !== undefined && chainId !== null && chainId !== SUPPORTED_CHAIN_ID;
 
-  const shortAddress = (addr) =>
+  const shortAddress = (addr: string): string =>
     addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : "";
 
   useEffect(() => {

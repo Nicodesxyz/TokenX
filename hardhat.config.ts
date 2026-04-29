@@ -1,10 +1,12 @@
-require("@nomicfoundation/hardhat-toolbox");
-require("dotenv").config();
+import { HardhatUserConfig } from "hardhat/config";
+import "@nomicfoundation/hardhat-toolbox";
+import * as dotenv from "dotenv";
+
+dotenv.config();
 
 const { SEPOLIA_RPC_URL, SEPOLIA_PRIVATE_KEY } = process.env;
 
-/** @type import('hardhat/config').HardhatUserConfig */
-module.exports = {
+const config: HardhatUserConfig = {
   solidity: "0.8.20",
   networks: {
     sepolia: {
@@ -13,3 +15,5 @@ module.exports = {
     },
   },
 };
+
+export default config;
