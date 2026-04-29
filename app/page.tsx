@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useReadContract, useReadContracts } from "wagmi";
 import { formatUnits } from "viem";
-import type { Address } from "viem";
+import type { Address, Abi } from "viem";
 
 import factoryABI from "./abi/TokenFactory.json";
 import launchpadABI from "./abi/LaunchpadToken.json";
@@ -47,13 +47,13 @@ export default function HomePage() {
 
   const ownerCalls = tokens.map((t) => ({
     address: t.token,
-    abi: launchpadABI.abi,
+    abi: launchpadABI.abi as Abi,
     functionName: "owner",
   }));
 
   const supplyCalls = tokens.map((t) => ({
     address: t.token,
-    abi: launchpadABI.abi,
+    abi: launchpadABI.abi as Abi,
     functionName: "totalSupply",
   }));
 

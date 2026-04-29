@@ -9,7 +9,7 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { formatUnits, parseUnits } from "viem";
-import type { Address } from "viem";
+import type { Address, Abi } from "viem";
 import lockerABI from "../abi/MultiTokenLocker.json";
 
 const LOCKER_ADDRESS = process.env.NEXT_PUBLIC_LOCKER_ADDRESS as Address | undefined;
@@ -82,7 +82,7 @@ export default function LockingPage() {
       LOCKER_ADDRESS && lockIds.length > 0
         ? lockIds.map((id) => ({
             address: LOCKER_ADDRESS,
-            abi: lockerABI.abi,
+            abi: lockerABI.abi as Abi,
             functionName: "locks",
             args: [id],
           }))
